@@ -1,0 +1,5 @@
+node_modules/
+dist/
+*.local
+artifacts-*.png
+.DS_Store
