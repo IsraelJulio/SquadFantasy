@@ -5,6 +5,7 @@ interface PlayerCardProps {
   onSelect?: (player: GamePlayer) => void
   selected?: boolean
   compact?: boolean
+  concealed?: boolean
 }
 
 const positionCode = {
@@ -15,13 +16,15 @@ const positionCode = {
   Atacante: 'ATA',
 }
 
-export function PlayerCard({ player, onSelect, selected = false, compact = false }: PlayerCardProps) {
+export function PlayerCard({ player, onSelect, selected = false, compact = false, concealed = false }: PlayerCardProps) {
   const rare = player.overall >= 86
+  const stat = (value: number) => concealed ? '?' : value
+
   return (
     <article className={`player-card ${rare ? 'player-card--rare' : ''} ${selected ? 'player-card--selected' : ''} ${compact ? 'player-card--compact' : ''}`}>
-      {rare && <span className="rare-label">RARO</span>}
+      {rare && <span className="rare-label">CAMPEÃO</span>}
       <div className="player-card__top">
-        <div className="overall"><strong>{player.overall}</strong><span>OVR</span></div>
+        <div className="overall"><strong>{stat(player.overall)}</strong><span>OVR</span></div>
         <div className="player-card__identity">
           <span className="position-badge">{positionCode[player.position]}</span>
           <span className="country-badge">{player.country}</span>
@@ -33,10 +36,10 @@ export function PlayerCard({ player, onSelect, selected = false, compact = false
         <p>{player.country} · {player.referenceYear}</p>
       </div>
       {!compact && (
-        <div className="stats-grid" aria-label="Atributos">
-          <span><b>{player.attack}</b> ATA</span><span><b>{player.defense}</b> DEF</span>
-          <span><b>{player.technique}</b> TEC</span><span><b>{player.speed}</b> VEL</span>
-          <span><b>{player.physical}</b> FIS</span><span><b>{player.mentality}</b> MEN</span>
+        <div className="stats-grid" aria-label={concealed ? 'Atributos ocultos' : 'Atributos'}>
+          <span><b>{stat(player.attack)}</b> ATA</span><span><b>{stat(player.defense)}</b> DEF</span>
+          <span><b>{stat(player.technique)}</b> TEC</span><span><b>{stat(player.speed)}</b> VEL</span>
+          <span><b>{stat(player.physical)}</b> FIS</span><span><b>{stat(player.mentality)}</b> MEN</span>
         </div>
       )}
       {onSelect && (

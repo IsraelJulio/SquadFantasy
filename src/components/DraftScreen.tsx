@@ -14,12 +14,12 @@ export function DraftScreen({ selected, options, onSelect }: DraftScreenProps) {
   return (
     <main className="game-shell">
       <section className="game-heading">
-        <div><span className="eyebrow">RODADA {round + 1} DE 11</span><h1>Escolha seu <em>{draftSlots[round]}</em></h1><p>Analise os atributos. Esta escolha não poderá ser desfeita.</p></div>
+        <div><span className="eyebrow">RODADA {round + 1} DE 11</span><h1>Escolha seu <em>{draftSlots[round]}</em></h1><p>Faça sua aposta. O verdadeiro overall será uma surpresa.</p></div>
         <div className="progress-ring" style={{ '--progress': `${progress * 3.6}deg` } as React.CSSProperties}><span><b>{round}</b>/11</span></div>
       </section>
       <div className="draft-progress"><span style={{ width: `${progress}%` }} /></div>
       <section className="draft-grid">
-        {options.map((player) => <PlayerCard key={player.id} player={player} onSelect={onSelect} />)}
+        {options.map((player) => <PlayerCard key={player.id} player={player} onSelect={onSelect} concealed />)}
       </section>
       {selected.length > 0 && (
         <section className="picked-strip">
