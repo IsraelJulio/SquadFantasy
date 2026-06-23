@@ -1,4 +1,4 @@
-import type { GamePlayer, Position } from '../types'
+import type { AthletePosition, FutsalPosition, GameAthlete, GameCoach, GamePlayer } from '../types'
 
 const names = [
   'Álvaro Luz', 'Bento Vidal', 'Caio Venturi', 'Dante Solano', 'Enzo Falcão', 'Félix Navarro', 'Gael Monteiro', 'Hugo Sanz',
@@ -14,53 +14,50 @@ const names = [
 ]
 
 const countries = ['Brasil', 'Argentina', 'Uruguai', 'França', 'Alemanha', 'Espanha', 'Itália', 'Portugal', 'Holanda', 'México', 'Japão', 'Marrocos', 'Croácia', 'Colômbia', 'Chile', 'Nigéria']
-const years = [1950, 1958, 1966, 1970, 1974, 1978, 1982, 1986, 1990, 1994, 1998, 2002, 2006, 2010, 2014, 2018, 2022]
-const positions: Position[] = [
-  ...Array(12).fill('Goleiro' as const),
-  ...Array(18).fill('Zagueiro' as const),
-  ...Array(14).fill('Lateral' as const),
-  ...Array(20).fill('Meio-campo' as const),
-  ...Array(16).fill('Atacante' as const),
+const years = [1982, 1986, 1990, 1994, 1998, 2000, 2004, 2008, 2012, 2016, 2020, 2024]
+const positions: FutsalPosition[] = [
+  ...Array(14).fill('GOLEIRO' as const),
+  ...Array(18).fill('FIXO' as const),
+  ...Array(24).fill('ALA' as const),
+  ...Array(16).fill('PIVO' as const),
+  ...Array(8).fill('TECNICO' as const),
 ]
 
-function clamp(value: number) {
-  return Math.max(55, Math.min(96, value))
+const clamp = (value: number) => Math.max(55, Math.min(96, value))
+
+function athleteAttributes(index: number, position: AthletePosition) {
+  const rareBoost = index % 19 === 0 ? 9 : index % 11 === 0 ? 4 : 0
+  const pulse = (offset: number) => ((index * (offset + 7) + offset * 13) % 17) - 8
+  const base = 72 + rareBoost
+  const profile: Record<AthletePosition, number[]> = {
+    GOLEIRO: [-18, 5, 18, -5, -15, 8, 9],
+    FIXO: [-5, 6, 13, 1, 0, 9, 7],
+    ALA: [5, 7, 0, 11, 10, 1, 4],
+    PIVO: [14, 2, -5, 3, 8, 8, 6],
+  }
+  return profile[position].map((value, attributeIndex) => clamp(base + value + pulse(attributeIndex)))
 }
 
-function attributes(index: number, position: Position) {
-  const rareBoost = index % 19 === 0 ? 10 : index % 11 === 0 ? 5 : 0
-  const pulse = (offset: number) => ((index * (offset + 7) + offset * 13) % 19) - 9
-  const base = 72 + rareBoost
-  const profile = {
-    Goleiro: [-24, 14, 1, -3, 7, 9],
-    Zagueiro: [-14, 13, -1, -1, 9, 6],
-    Lateral: [-3, 5, 3, 10, 3, 2],
-    'Meio-campo': [4, 3, 12, 2, 0, 6],
-    Atacante: [14, -13, 8, 8, 3, 4],
-  }[position]
-  return profile.map((value, attributeIndex) => clamp(base + value + pulse(attributeIndex)))
+function createAthlete(name: string, index: number, position: AthletePosition): GameAthlete {
+  const [finishing, passing, marking, speed, dribbling, physical, mentality] = athleteAttributes(index, position)
+  const overall = Math.round((finishing + passing + marking + speed + dribbling + physical + mentality) / 7)
+  return { id: `player-${index + 1}`, kind: 'athlete', name, country: countries[index % countries.length], position, referenceYear: years[(index * 3) % years.length], finishing, passing, marking, speed, dribbling, physical, mentality, overall }
+}
+
+function createCoach(name: string, index: number): GameCoach {
+  const pulse = (offset: number) => ((index * 5 + offset * 7) % 19) - 9
+  const motivation = clamp(76 + pulse(0))
+  const tactics = clamp(78 + pulse(1))
+  const defense = clamp(74 + pulse(2))
+  const attack = clamp(75 + pulse(3))
+  const squadManagement = clamp(79 + pulse(4))
+  const overall = Math.round((motivation + tactics + defense + attack + squadManagement) / 5)
+  return { id: `player-${index + 1}`, kind: 'coach', name, country: countries[index % countries.length], position: 'TECNICO', referenceYear: years[(index * 3) % years.length], motivation, tactics, defense, attack, squadManagement, overall }
 }
 
 export const players: GamePlayer[] = names.map((name, index) => {
   const position = positions[index]
-  const [attack, defense, technique, speed, physical, mentality] = attributes(index, position)
-  const weights = position === 'Goleiro' ? [0.03, 0.35, 0.12, 0.05, 0.2, 0.25] : [0.2, 0.18, 0.2, 0.14, 0.13, 0.15]
-  const values = [attack, defense, technique, speed, physical, mentality]
-  const overall = Math.round(values.reduce((sum, value, attributeIndex) => sum + value * weights[attributeIndex], 0))
-  return {
-    id: `player-${index + 1}`,
-    name,
-    country: countries[index % countries.length],
-    position,
-    referenceYear: years[(index * 3) % years.length],
-    attack,
-    defense,
-    technique,
-    speed,
-    physical,
-    mentality,
-    overall,
-  }
+  return position === 'TECNICO' ? createCoach(name, index) : createAthlete(name, index, position)
 })
 
 export const playerById = new Map(players.map((player) => [player.id, player]))

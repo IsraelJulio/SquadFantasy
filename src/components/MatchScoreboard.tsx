@@ -1,0 +1,4 @@
+import type { MatchSimulationStatus } from '../types'
+import { MatchClock } from './MatchClock'
+interface MatchScoreboardProps { opponentName: string; userScore: number; opponentScore: number; status: MatchSimulationStatus; minute: number }
+export function MatchScoreboard({ opponentName, userScore, opponentScore, status, minute }: MatchScoreboardProps) { return <section className="live-scoreboard" aria-label="Placar da partida" aria-live="polite"><div className="live-team live-team--user"><b>EI</b><span>Esquadrão Imortal</span></div><div className="live-score"><strong>{userScore}</strong><i>×</i><strong>{opponentScore}</strong></div><div className="live-team live-team--opponent"><b>{opponentName.slice(0, 2).toUpperCase()}</b><span>{opponentName}</span></div><MatchClock status={status} minute={minute} /></section> }

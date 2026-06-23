@@ -1,6 +1,6 @@
 import type { GameCampaign } from '../types'
 
-const STORAGE_KEY = 'esquadrao-imortal:campaigns:v1'
+const STORAGE_KEY = 'esquadrao-imortal:futsal-campaigns:v2'
 
 function readAll(): GameCampaign[] {
   try {
@@ -24,11 +24,12 @@ export const campaignRepository = {
     const now = new Date().toISOString()
     return this.save({
       id: crypto.randomUUID(),
-      status: 'draft',
+      status: 'tactics',
       currentStage: 'Fase de grupos',
       selectedFormation: null,
       selectedStrategy: null,
       playerIds: [],
+      starterIds: [],
       matches: [],
       groupPoints: 0,
       createdAt: now,
