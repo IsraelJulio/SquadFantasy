@@ -23,15 +23,19 @@ export function applyMatch(campaign: GameCampaign, match: GameCampaign['matches'
   const groupPoints = campaign.groupPoints + (match.stage === 'Fase de grupos' ? pointsFor(match.result) : 0)
   let status = campaign.status
   let currentStage = campaign.currentStage
+  let losingStreak = match.result === 'defeat' ? campaign.losingStreak + 1 : match.result === 'victory' ? 0 : Math.max(0, campaign.losingStreak - 1)
 
   if (match.stage === 'Fase de grupos' && matches.length === 3) {
     if (groupPoints < 4) status = 'eliminated'
     else currentStage = 'Oitavas'
   } else if (match.stage !== 'Fase de grupos') {
     if (match.result === 'defeat') status = 'eliminated'
-    else if (match.stage === 'Final') status = 'champion'
+    else if (match.stage === 'Final') {
+      status = 'champion'
+      losingStreak = 0
+    }
     else currentStage = knockoutStages[knockoutStages.indexOf(match.stage) + 1]
   }
 
-  return { ...campaign, matches, groupPoints, status, currentStage, updatedAt: new Date().toISOString() }
+  return { ...campaign, matches, groupPoints, losingStreak, status, currentStage, updatedAt: new Date().toISOString() }
 }

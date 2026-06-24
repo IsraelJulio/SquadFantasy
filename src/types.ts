@@ -5,9 +5,35 @@ export type Strategy = 'Ofensivo' | 'Equilibrado' | 'Defensivo' | 'Contra-ataque
 export type Stage = 'Fase de grupos' | 'Oitavas' | 'Quartas' | 'Semifinal' | 'Final'
 export type CampaignStatus = 'tactics' | 'draft' | 'active' | 'champion' | 'eliminated'
 export type MatchResult = 'victory' | 'draw' | 'defeat'
-export type MatchSimulationStatus = 'not_started' | 'first_half' | 'half_time' | 'second_half' | 'paused' | 'finished'
+export type MatchSimulationStatus = 'not_started' | 'first_half' | 'half_time' | 'second_half' | 'paused' | 'awaiting_penalties' | 'penalties' | 'finished'
 export type MatchEventType = 'kick-off' | 'goal' | 'chance' | 'save' | 'foul' | 'substitution' | 'half-time' | 'second-half' | 'full-time'
 export type MatchEventTeam = 'user' | 'opponent' | 'neutral'
+export type PenaltyTeam = 'user' | 'opponent'
+export type PenaltyShotResult = 'goal' | 'miss' | 'saved' | 'post'
+export type PenaltyShootoutStatus = 'not_started' | 'in_progress' | 'finished'
+
+export interface PenaltyShot {
+  id: string
+  round: number
+  team: PenaltyTeam
+  takerId: string
+  takerName: string
+  goalkeeperName: string
+  result: PenaltyShotResult
+  userPenaltyScore: number
+  opponentPenaltyScore: number
+  description: string
+}
+
+export interface PenaltyShootoutState {
+  status: PenaltyShootoutStatus
+  currentRound: number
+  currentTeam: PenaltyTeam
+  userPenaltyScore: number
+  opponentPenaltyScore: number
+  shots: PenaltyShot[]
+  winner?: PenaltyTeam
+}
 
 export interface MatchTimelineEvent {
   id: string
@@ -27,31 +53,18 @@ export interface MatchTimelineEvent {
 interface PersonBase {
   id: string
   name: string
-  country: string
-  referenceYear: number
+  position: FutsalPosition
+  overallOriginal: number
   overall: number
 }
 
 export interface GameAthlete extends PersonBase {
-  kind: 'athlete'
   position: AthletePosition
-  finishing: number
-  passing: number
-  marking: number
-  speed: number
-  dribbling: number
-  physical: number
-  mentality: number
+  stamina: number
 }
 
 export interface GameCoach extends PersonBase {
-  kind: 'coach'
   position: 'TECNICO'
-  motivation: number
-  tactics: number
-  defense: number
-  attack: number
-  squadManagement: number
 }
 
 export type GamePlayer = GameAthlete | GameCoach
@@ -62,9 +75,6 @@ export interface Opponent {
   year: number
   level: number
   strategy: Strategy
-  attack: number
-  defense: number
-  midfield: number
 }
 
 export interface GameMatch {
@@ -77,6 +87,11 @@ export interface GameMatch {
   summary: string
   manOfTheMatch: string
   decidedOnPenalties?: boolean
+  wentToPenalties?: boolean
+  userPenaltyScore?: number | null
+  opponentPenaltyScore?: number | null
+  penaltyWinner?: PenaltyTeam | null
+  penaltyShots?: PenaltyShot[]
   createdAt: string
 }
 
@@ -89,6 +104,7 @@ export interface MatchSimulationPlan {
   strategy: Strategy
   squad: GamePlayer[]
   starterIds: string[]
+  losingStreak: number
   events: MatchTimelineEvent[]
   match?: GameMatch
 }
@@ -101,6 +117,7 @@ export interface GameCampaign {
   selectedStrategy: Strategy | null
   playerIds: string[]
   starterIds: string[]
+  losingStreak: number
   matches: GameMatch[]
   groupPoints: number
   createdAt: string

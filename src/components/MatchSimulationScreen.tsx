@@ -3,6 +3,7 @@ import type { GameCampaign, MatchSimulationPlan, Opponent } from '../types'
 import { MatchEventHighlight } from './MatchEventHighlight'
 import { MatchScoreboard } from './MatchScoreboard'
 import { MatchTimeline } from './MatchTimeline'
+import { PenaltyShootoutPanel } from './PenaltyShootoutPanel'
 import { SubstitutionModal } from './SubstitutionModal'
 
 interface MatchSimulationScreenProps { campaign: GameCampaign; opponent: Opponent; plan: MatchSimulationPlan; onFinished: (plan: MatchSimulationPlan) => void; onContinue: () => void }
@@ -10,6 +11,8 @@ interface MatchSimulationScreenProps { campaign: GameCampaign; opponent: Opponen
 export function MatchSimulationScreen({ campaign, opponent, plan, onFinished, onContinue }: MatchSimulationScreenProps) {
   const simulation = useMatchSimulation(plan, opponent, onFinished)
   const finished = simulation.status === 'finished'
+  const penaltiesVisible = ['awaiting_penalties', 'penalties'].includes(simulation.status)
+  const matchRunning = ['first_half', 'half_time', 'second_half'].includes(simulation.status)
   const result = simulation.completedPlan?.match
   const continueLabel = campaign.status === 'active' ? 'Jogar próxima partida' : 'Finalizar campanha'
   return (
@@ -19,13 +22,14 @@ export function MatchSimulationScreen({ campaign, opponent, plan, onFinished, on
       <div className="simulation-controls" aria-label="Controles da simulação">
         <button className="button button--primary" onClick={simulation.start} disabled={simulation.status !== 'not_started'}>Iniciar partida</button>
         <button className="button button--substitution" onClick={simulation.pauseForSubstitution} disabled={!['first_half', 'second_half'].includes(simulation.status)}>Fazer substituição</button>
-        <button className="button button--ghost" onClick={simulation.accelerate} disabled={finished}>Acelerar · {simulation.speed}×</button>
-        <button className="button button--ghost" onClick={simulation.skipToEnd} disabled={finished}>Pular para o final</button>
+        <button className="button button--ghost" onClick={simulation.accelerate} disabled={!matchRunning}>Acelerar · {simulation.speed}×</button>
+        <button className="button button--ghost" onClick={simulation.skipToEnd} disabled={!matchRunning}>Pular para o final</button>
       </div>
+      {penaltiesVisible && <PenaltyShootoutPanel opponentName={`${opponent.name} ${opponent.year}`} regulationScore={{ user: simulation.userScore, opponent: simulation.opponentScore }} shootout={simulation.shootout} participants={simulation.penaltyParticipants} onStart={simulation.beginPenalties} onShoot={simulation.takePenalty} onSkip={simulation.skipPenalties} />}
       <MatchEventHighlight event={simulation.latestGoal} />
       <MatchTimeline events={simulation.visibleEvents} />
       {simulation.status === 'paused' && <SubstitutionModal mode="in_match" activePlayers={simulation.activePlayers} benchPlayers={simulation.benchPlayers} onClose={simulation.cancelSubstitution} onConfirm={(playerOutId, playerInId) => simulation.substitute({ playerOutId, playerInId })} />}
-      {finished && result && <section className={`simulation-summary simulation-summary--${result.result}`}><span className="eyebrow">APITO FINAL</span><h2>{result.userScore} × {result.opponentScore}</h2><p>{result.summary}</p><div><small>DESTAQUE DA PARTIDA</small><strong>★ {result.manOfTheMatch}</strong></div><button className="button button--primary" onClick={onContinue}>{continueLabel} →</button></section>}
+      {finished && result && <section className={`simulation-summary simulation-summary--${result.result}`}><span className="eyebrow">APITO FINAL</span><h2>{result.userScore}{result.wentToPenalties ? ` (${result.userPenaltyScore})` : ''} × {result.wentToPenalties ? `(${result.opponentPenaltyScore}) ` : ''}{result.opponentScore}</h2><p>{result.summary}</p><div><small>DESTAQUE DA PARTIDA</small><strong>★ {result.manOfTheMatch}</strong></div><button className="button button--primary" onClick={onContinue}>{continueLabel} →</button></section>}
     </main>
   )
 }

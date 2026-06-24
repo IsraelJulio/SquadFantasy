@@ -20,7 +20,7 @@ export function TournamentScreen({ campaign, opponent, squad, bestPlayer, onPlay
   const stageIndex = campaign.matches.length < 3 ? 0 : Math.min(campaign.matches.length - 2, 4)
   const groupMatches = campaign.matches.filter((match) => match.stage === 'Fase de grupos')
   const starters = squad.filter((player) => campaign.starterIds.includes(player.id))
-  const bench = squad.filter((player) => player.kind === 'athlete' && !campaign.starterIds.includes(player.id))
+  const bench = squad.filter((player) => player.position !== 'TECNICO' && !campaign.starterIds.includes(player.id))
   const lineupErrors = campaign.selectedFormation ? validateStartingLineup(starters, bench, campaign.selectedFormation) : ['Formação não definida.']
 
   return (

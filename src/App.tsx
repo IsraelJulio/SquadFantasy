@@ -71,7 +71,7 @@ export function App() {
   function saveLineup(starterIds: string[]) {
     if (!campaign?.selectedFormation) return
     const starters = squad.filter((player) => starterIds.includes(player.id))
-    const bench = squad.filter((player) => player.kind === 'athlete' && !starterIds.includes(player.id))
+    const bench = squad.filter((player) => player.position !== 'TECNICO' && !starterIds.includes(player.id))
     if (validateStartingLineup(starters, bench, campaign.selectedFormation).length > 0) return
     persist({ ...campaign, starterIds, updatedAt: new Date().toISOString() })
   }
@@ -79,10 +79,10 @@ export function App() {
   function playMatch() {
     if (!campaign?.selectedFormation || !campaign.selectedStrategy || activeSimulation) return
     const starters = squad.filter((player) => campaign.starterIds.includes(player.id))
-    const bench = squad.filter((player) => player.kind === 'athlete' && !campaign.starterIds.includes(player.id))
+    const bench = squad.filter((player) => player.position !== 'TECNICO' && !campaign.starterIds.includes(player.id))
     if (validateStartingLineup(starters, bench, campaign.selectedFormation).length > 0) return
     const opponent = opponentFor(campaign)
-    const plan = createMatchSimulation(campaign.id, campaign.matches.length, squad, campaign.starterIds, campaign.selectedFormation, campaign.selectedStrategy, stageFor(campaign))
+    const plan = createMatchSimulation(campaign.id, campaign.matches.length, squad, campaign.starterIds, campaign.selectedFormation, campaign.selectedStrategy, stageFor(campaign), campaign.losingStreak)
     setActiveSimulation({ plan, opponent })
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
@@ -116,7 +116,7 @@ export function App() {
     screen = <DraftScreen selected={squad} options={options} formation={campaign.selectedFormation!} onSelect={selectPlayer} />
   } else if (campaign.status === 'active') {
     const opponent = opponentFor(campaign)
-    const bestPlayer = squad.filter((player) => player.kind === 'athlete').sort((a, b) => b.overall - a.overall)[0]
+    const bestPlayer = squad.filter((player) => player.position !== 'TECNICO').sort((a, b) => b.overall - a.overall)[0]
     screen = <TournamentScreen campaign={campaign} opponent={opponent} squad={squad} bestPlayer={bestPlayer} onPlay={playMatch} onSaveLineup={saveLineup} />
   } else {
     screen = <FinalScreen campaign={campaign} onNew={startCampaign} onHome={goHome} />

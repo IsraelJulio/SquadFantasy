@@ -14,7 +14,7 @@ interface LineupModalProps {
 
 export function LineupModal({ squad, formation, initialStarterIds, onConfirm, onClose }: LineupModalProps) {
   const [starterIds, setStarterIds] = useState(initialStarterIds)
-  const athletes = squad.filter((player): player is GameAthlete => player.kind === 'athlete')
+  const athletes = squad.filter((player): player is GameAthlete => player.position !== 'TECNICO')
   const starters = athletes.filter((player) => starterIds.includes(player.id))
   const bench = athletes.filter((player) => !starterIds.includes(player.id))
   const errors = validateStartingLineup(starters, bench, formation)

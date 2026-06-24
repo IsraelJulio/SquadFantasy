@@ -1,16 +1,20 @@
-import type { AthletePosition, Formation, GameAthlete, GameMatch, GamePlayer, MatchSimulationPlan, MatchTimelineEvent, Opponent, Stage, Strategy } from '../types'
+import type { AthletePosition, Formation, GameAthlete, GameMatch, GamePlayer, MatchSimulationPlan, MatchTimelineEvent, Opponent, PenaltyShootoutState, Stage, Strategy } from '../types'
 import { hashSeed, seededRandom } from './random'
-import { athletesFrom, calculateActiveLineupStrength, coachFrom } from './squad'
+import { createPenaltyShootout, startPenaltyShootout, takeNextPenalty } from './penalties'
+import { athletesFrom, calculateActiveLineupStrength, calculateComebackBoost, coachFrom, updateTeamStamina } from './squad'
 
 export interface LiveMatchState {
   plan: MatchSimulationPlan
+  userPlayers: GameAthlete[]
   activeIds: string[]
   benchIds: string[]
+  opponentPlayers: GameAthlete[]
+  opponentActiveIds: string[]
+  opponentBenchIds: string[]
   minute: number
   userScore: number
   opponentScore: number
   events: MatchTimelineEvent[]
-  opponentSubstitutions: number
 }
 
 export interface Substitution {
@@ -18,75 +22,93 @@ export interface Substitution {
   playerInId: string
 }
 
-const opponentPlayers: Record<AthletePosition, string[]> = {
-  GOLEIRO: ['Ortiz', 'Guitta', 'Higuita'],
-  FIXO: ['Marcenio', 'Rodrigo', 'Borruto', 'Ciço'],
-  ALA: ['Ricardinho', 'Dyego', 'Leozinho', 'Pito', 'Merlim'],
-  PIVO: ['Ferrão', 'Lenísio', 'Simi'],
+const opponentNames: Record<AthletePosition, string[]> = {
+  GOLEIRO: ['Ortiz', 'Guitta'],
+  FIXO: ['Marcenio', 'Rodrigo'],
+  ALA: ['Ricardinho', 'Dyego', 'Leozinho', 'Pito'],
+  PIVO: ['Ferrão', 'Lenísio'],
 }
 
 function event(state: LiveMatchState, values: Omit<MatchTimelineEvent, 'id' | 'minute' | 'period' | 'userScore' | 'opponentScore'> & { userScore?: number; opponentScore?: number }): MatchTimelineEvent {
+  return { id: crypto.randomUUID(), minute: state.minute, period: state.minute <= 20 ? 1 : 2, userScore: values.userScore ?? state.userScore, opponentScore: values.opponentScore ?? state.opponentScore, ...values }
+}
+
+function createOpponentPlayer(name: string, position: AthletePosition, index: number, level: number): GameAthlete {
+  const overallOriginal = Math.max(65, Math.min(92, level + ((index * 5) % 7) - 3))
+  return { id: `opponent-${position}-${index}`, name, position, overallOriginal, overall: overallOriginal, stamina: 100 }
+}
+
+function createOpponentTeam(opponent: Opponent) {
+  const players = (Object.entries(opponentNames) as [AthletePosition, string[]][]).flatMap(([position, names]) => names.map((name, index) => createOpponentPlayer(name, position, index, opponent.level)))
+  const activeIds = (['GOLEIRO', 'FIXO', 'ALA', 'PIVO'] as AthletePosition[]).flatMap((position) => players.filter((player) => player.position === position).slice(0, position === 'ALA' ? 2 : 1).map((player) => player.id))
+  return { players, activeIds, benchIds: players.filter((player) => !activeIds.includes(player.id)).map((player) => player.id) }
+}
+
+export function createMatchSimulation(campaignId: string, matchNumber: number, squad: GamePlayer[], starterIds: string[], formation: Formation, strategy: Strategy, stage: Stage, losingStreak = 0): MatchSimulationPlan {
+  return { id: crypto.randomUUID(), campaignId, matchNumber, squad, starterIds, formation, strategy, stage, losingStreak, events: [] }
+}
+
+export function createInitialMatchState(plan: MatchSimulationPlan, opponent: Opponent): LiveMatchState {
+  const userPlayers = athletesFrom(plan.squad).map((player) => ({ ...player, stamina: 100, overall: player.overallOriginal }))
+  const athleteIds = userPlayers.map((player) => player.id)
+  const opponentTeam = createOpponentTeam(opponent)
   return {
-    id: crypto.randomUUID(),
-    minute: state.minute,
-    period: state.minute <= 20 ? 1 : 2,
-    userScore: values.userScore ?? state.userScore,
-    opponentScore: values.opponentScore ?? state.opponentScore,
-    ...values,
+    plan,
+    userPlayers,
+    activeIds: [...plan.starterIds],
+    benchIds: athleteIds.filter((id) => !plan.starterIds.includes(id)),
+    opponentPlayers: opponentTeam.players,
+    opponentActiveIds: opponentTeam.activeIds,
+    opponentBenchIds: opponentTeam.benchIds,
+    minute: 0,
+    userScore: 0,
+    opponentScore: 0,
+    events: [],
   }
 }
 
-export function createMatchSimulation(
-  campaignId: string,
-  matchNumber: number,
-  squad: GamePlayer[],
-  starterIds: string[],
-  formation: Formation,
-  strategy: Strategy,
-  stage: Stage,
-): MatchSimulationPlan {
-  return { id: crypto.randomUUID(), campaignId, matchNumber, squad, starterIds, formation, strategy, stage, events: [] }
-}
-
-export function createInitialMatchState(plan: MatchSimulationPlan): LiveMatchState {
-  const athleteIds = athletesFrom(plan.squad).map((player) => player.id)
-  return { plan, activeIds: [...plan.starterIds], benchIds: athleteIds.filter((id) => !plan.starterIds.includes(id)), minute: 0, userScore: 0, opponentScore: 0, events: [], opponentSubstitutions: 0 }
-}
-
-function activeAthletes(state: LiveMatchState): GameAthlete[] {
-  return state.activeIds.map((id) => state.plan.squad.find((player) => player.id === id)).filter((player): player is GameAthlete => player?.kind === 'athlete')
-}
+const playersByIds = (players: GameAthlete[], ids: string[]) => ids.map((id) => players.find((player) => player.id === id)).filter((player): player is GameAthlete => Boolean(player))
 
 function userScorer(players: GameAthlete[], random: () => number) {
-  const weighted = [...players].sort((a, b) => (b.finishing + b.dribbling) - (a.finishing + a.dribbling))
-  return weighted[Math.floor(random() * Math.max(1, Math.min(weighted.length, 4)))]?.name ?? 'Seu ala'
+  const candidates = [...players].sort((a, b) => b.overall - a.overall).slice(0, 4)
+  return candidates[Math.floor(random() * Math.max(1, candidates.length))]?.name ?? 'Seu ala'
 }
 
-export function generateOpponentSubstitution(state: LiveMatchState, random: () => number): MatchTimelineEvent | null {
-  if (state.minute < 5 || state.minute === 20 || random() > 0.075) return null
-  const positions: AthletePosition[] = ['FIXO', 'ALA', 'PIVO', 'GOLEIRO']
-  const position = positions[Math.floor(random() * positions.length)]
-  const names = opponentPlayers[position]
-  const offset = state.opponentSubstitutions % names.length
-  const playerOut = names[offset]
-  const playerIn = names[(offset + 1) % names.length]
-  return event(state, {
-    type: 'substitution', team: 'opponent', playerOut, playerIn, position,
-    description: `Substituição do adversário: saiu ${playerOut}, entrou ${playerIn}.`,
+function applyOpponentSubstitution(state: LiveMatchState, random: () => number): LiveMatchState {
+  if (state.minute < 5 || state.minute === 20) return state
+  const active = playersByIds(state.opponentPlayers, state.opponentActiveIds)
+  const bench = playersByIds(state.opponentPlayers, state.opponentBenchIds)
+  const outgoing = [...active].sort((a, b) => a.stamina - b.stamina)[0]
+  if (!outgoing || (outgoing.stamina >= 40 && random() > 0.075)) return state
+  const compatible = bench.filter((player) => player.position === outgoing.position).sort((a, b) => b.overall - a.overall)
+  const incoming = compatible[0]
+  if (!incoming) return state
+  const substitutionEvent = event(state, {
+    type: 'substitution', team: 'opponent', playerOut: outgoing.name, playerIn: incoming.name, position: outgoing.position,
+    description: `Substituição do adversário: saiu ${outgoing.name}, entrou ${incoming.name}.`,
   })
+  return {
+    ...state,
+    opponentActiveIds: state.opponentActiveIds.map((id) => id === outgoing.id ? incoming.id : id),
+    opponentBenchIds: state.opponentBenchIds.map((id) => id === incoming.id ? outgoing.id : id),
+    events: [...state.events, substitutionEvent],
+  }
 }
 
 export function simulateNextMinute(state: LiveMatchState, opponent: Opponent): LiveMatchState {
   const minute = state.minute + 1
-  const next = { ...state, minute }
+  const userPlayers = updateTeamStamina(state.userPlayers, state.activeIds)
+  const opponentPlayers = updateTeamStamina(state.opponentPlayers, state.opponentActiveIds)
+  const next = { ...state, minute, userPlayers, opponentPlayers }
   const signature = [...state.activeIds].sort().join('-')
   const random = seededRandom(hashSeed(`${state.plan.campaignId}-${state.plan.matchNumber}-${minute}-${signature}-${state.userScore}-${state.opponentScore}`))
-  const active = activeAthletes(next)
-  const coach = coachFrom(state.plan.squad)
-  const strength = calculateActiveLineupStrength(active, state.plan.formation, state.plan.strategy, coach)
-  const controlEdge = strength.control - opponent.midfield
-  const userGoalChance = Math.max(0.018, Math.min(0.16, 0.07 + (strength.attack - opponent.defense) / 650 + controlEdge / 1100))
-  const opponentGoalChance = Math.max(0.018, Math.min(0.16, 0.065 + (opponent.attack - strength.defense) / 650 - controlEdge / 1200))
+  const active = playersByIds(userPlayers, state.activeIds)
+  const opponentActive = playersByIds(opponentPlayers, state.opponentActiveIds)
+  const userStrength = calculateActiveLineupStrength(active, coachFrom(state.plan.squad), state.plan.formation, state.plan.strategy, calculateComebackBoost(state.plan.losingStreak)).finalStrength
+  const opponentStrength = calculateActiveLineupStrength(opponentActive, undefined, 'DIAMOND_3_1', opponent.strategy, 1).finalStrength
+  const strengthEdge = userStrength - opponentStrength
+  const userGoalChance = Math.max(0.02, Math.min(0.14, 0.065 + strengthEdge / 650))
+  const opponentGoalChance = Math.max(0.02, Math.min(0.14, 0.065 - strengthEdge / 650))
   const roll = random()
   const events = [...state.events]
   let userScore = state.userScore
@@ -98,8 +120,7 @@ export function simulateNextMinute(state: LiveMatchState, opponent: Opponent): L
     events.push(event({ ...next, userScore, opponentScore }, { type: 'goal', team: 'user', playerName, description: `GOL! ${playerName} gira rápido e finaliza no canto.`, userScore, opponentScore }))
   } else if (roll < userGoalChance + opponentGoalChance) {
     opponentScore += 1
-    const scorers = opponentPlayers.ALA
-    const playerName = scorers[Math.floor(random() * scorers.length)]
+    const playerName = userScorer(opponentActive, random)
     events.push(event({ ...next, userScore, opponentScore }, { type: 'goal', team: 'opponent', playerName, description: `Gol do adversário. ${playerName} conclui a troca de passes.`, userScore, opponentScore }))
   } else if (roll < userGoalChance + opponentGoalChance + 0.12) {
     const team = random() > 0.48 ? 'user' : 'opponent'
@@ -112,22 +133,16 @@ export function simulateNextMinute(state: LiveMatchState, opponent: Opponent): L
     events.push(event(next, { type, team, description: descriptions[type] }))
   }
 
-  const stateAfterPlay = { ...next, userScore, opponentScore, events }
-  const opponentSubstitution = generateOpponentSubstitution(stateAfterPlay, random)
-  if (opponentSubstitution) events.push(opponentSubstitution)
-  return { ...stateAfterPlay, events, opponentSubstitutions: state.opponentSubstitutions + (opponentSubstitution ? 1 : 0) }
+  return applyOpponentSubstitution({ ...next, userScore, opponentScore, events }, random)
 }
 
 export function createSubstitutionTimelineEvent(state: LiveMatchState, outgoing: GameAthlete, incoming: GameAthlete): MatchTimelineEvent {
-  return event(state, {
-    type: 'substitution', team: 'user', playerOut: outgoing.name, playerIn: incoming.name, position: outgoing.position,
-    description: `Substituição no seu time: saiu ${outgoing.name}, entrou ${incoming.name}.`,
-  })
+  return event(state, { type: 'substitution', team: 'user', playerOut: outgoing.name, playerIn: incoming.name, position: outgoing.position, description: `Substituição no seu time: saiu ${outgoing.name}, entrou ${incoming.name}.` })
 }
 
 export function applySubstitution(state: LiveMatchState, substitution: Substitution): LiveMatchState {
-  const outgoing = state.plan.squad.find((player): player is GameAthlete => player.id === substitution.playerOutId && player.kind === 'athlete')
-  const incoming = state.plan.squad.find((player): player is GameAthlete => player.id === substitution.playerInId && player.kind === 'athlete')
+  const outgoing = state.userPlayers.find((player) => player.id === substitution.playerOutId)
+  const incoming = state.userPlayers.find((player) => player.id === substitution.playerInId)
   if (!outgoing || !incoming || outgoing.position !== incoming.position) return state
   if (!state.activeIds.includes(outgoing.id) || !state.benchIds.includes(incoming.id)) return state
   return {
@@ -142,29 +157,35 @@ export function addSystemEvent(state: LiveMatchState, type: 'kick-off' | 'half-t
   return { ...state, events: [...state.events, event(state, { type, team: 'neutral', description })] }
 }
 
-export function finalizeMatch(state: LiveMatchState, opponent: Opponent): MatchSimulationPlan {
-  const random = seededRandom(hashSeed(`${state.plan.campaignId}-${state.plan.matchNumber}-final`))
+export function finalizeMatch(state: LiveMatchState, opponent: Opponent, shootout?: PenaltyShootoutState): MatchSimulationPlan {
   const tiedKnockout = state.plan.stage !== 'Fase de grupos' && state.userScore === state.opponentScore
-  const result = tiedKnockout ? (random() >= 0.5 ? 'victory' : 'defeat') : state.userScore > state.opponentScore ? 'victory' : state.userScore < state.opponentScore ? 'defeat' : 'draw'
-  const active = activeAthletes(state)
+  if (tiedKnockout && shootout?.status !== 'finished') throw new Error('Uma partida eliminatória empatada só pode terminar após os pênaltis.')
+  const active = playersByIds(state.userPlayers, state.activeIds)
+  const result = tiedKnockout ? (shootout!.winner === 'user' ? 'victory' : 'defeat') : state.userScore > state.opponentScore ? 'victory' : state.userScore < state.opponentScore ? 'defeat' : 'draw'
   const best = [...active].sort((a, b) => b.overall - a.overall)[0]?.name ?? 'Destaque do futsal'
   const match: GameMatch = {
-    id: state.plan.id,
-    stage: state.plan.stage,
-    opponentName: `${opponent.name} ${opponent.year}`,
-    userScore: state.userScore,
-    opponentScore: state.opponentScore,
-    result,
+    id: state.plan.id, stage: state.plan.stage, opponentName: `${opponent.name} ${opponent.year}`, userScore: state.userScore, opponentScore: state.opponentScore, result,
     summary: tiedKnockout ? `Após o empate, a vaga foi decidida nos pênaltis: ${result === 'victory' ? 'classificação do seu time' : `classificação do ${opponent.name}`}.` : result === 'victory' ? 'Seu quinteto controlou os momentos decisivos e confirmou a vitória.' : result === 'defeat' ? `${opponent.name} aproveitou melhor os espaços.` : 'Um duelo equilibrado até o apito final.',
     manOfTheMatch: result === 'defeat' ? `Camisa 10 do ${opponent.name}` : best,
     decidedOnPenalties: tiedKnockout,
+    wentToPenalties: tiedKnockout,
+    userPenaltyScore: shootout?.userPenaltyScore ?? null,
+    opponentPenaltyScore: shootout?.opponentPenaltyScore ?? null,
+    penaltyWinner: shootout?.winner ?? null,
+    penaltyShots: shootout?.shots ?? [],
     createdAt: new Date().toISOString(),
   }
   return { ...state.plan, starterIds: state.activeIds, events: state.events, match }
 }
 
-export function simulateMatch(campaignId: string, matchNumber: number, squad: GamePlayer[], starterIds: string[], formation: Formation, strategy: Strategy, opponent: Opponent, stage: Stage): GameMatch {
-  let state = createInitialMatchState(createMatchSimulation(campaignId, matchNumber, squad, starterIds, formation, strategy, stage))
+export function simulateMatch(campaignId: string, matchNumber: number, squad: GamePlayer[], starterIds: string[], formation: Formation, strategy: Strategy, opponent: Opponent, stage: Stage, losingStreak = 0): GameMatch {
+  let state = createInitialMatchState(createMatchSimulation(campaignId, matchNumber, squad, starterIds, formation, strategy, stage, losingStreak), opponent)
   for (let minute = 0; minute < 40; minute += 1) state = simulateNextMinute(state, opponent)
+  if (stage !== 'Fase de grupos' && state.userScore === state.opponentScore) {
+    let shootout = startPenaltyShootout(createPenaltyShootout())
+    const random = seededRandom(hashSeed(`${campaignId}-${matchNumber}-penalties`))
+    while (shootout.status !== 'finished') shootout = takeNextPenalty(state, shootout, random)
+    return finalizeMatch(state, opponent, shootout).match!
+  }
   return finalizeMatch(state, opponent).match!
 }

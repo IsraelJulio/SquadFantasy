@@ -4,7 +4,8 @@ const STORAGE_KEY = 'esquadrao-imortal:futsal-campaigns:v2'
 
 function readAll(): GameCampaign[] {
   try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]') as GameCampaign[]
+    const campaigns = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]') as Array<GameCampaign & { losingStreak?: number }>
+    return campaigns.map((campaign) => ({ ...campaign, losingStreak: campaign.losingStreak ?? 0 }))
   } catch {
     return []
   }
@@ -30,6 +31,7 @@ export const campaignRepository = {
       selectedStrategy: null,
       playerIds: [],
       starterIds: [],
+      losingStreak: 0,
       matches: [],
       groupPoints: 0,
       createdAt: now,
