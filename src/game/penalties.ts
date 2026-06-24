@@ -1,5 +1,6 @@
 import type { GameAthlete, PenaltyShootoutState, PenaltyShot, PenaltyShotResult, PenaltyTeam } from '../types'
 import type { LiveMatchState } from './simulation'
+import { calculateDifficultyBoost } from './balance'
 import { calculateCoachBoost, calculateComebackBoost, coachFrom } from './squad'
 
 export interface PenaltyParticipants {
@@ -82,7 +83,7 @@ export function takeNextPenalty(match: LiveMatchState, shootout: PenaltyShootout
   const team = shootout.currentTeam
   const { taker, goalkeeper } = getPenaltyParticipants(match, shootout, team)
   const coachBoost = team === 'user' ? calculateCoachBoost(coachFrom(match.plan.squad)) : 1
-  const comebackBoost = team === 'user' ? calculateComebackBoost(match.plan.losingStreak) : 1
+  const comebackBoost = team === 'user' ? calculateComebackBoost(match.plan.losingStreak) * calculateDifficultyBoost(match.plan.difficulty) : 1
   const result = simulatePenaltyShot(taker, goalkeeper, coachBoost, comebackBoost, random)
   const userPenaltyScore = shootout.userPenaltyScore + (team === 'user' && result === 'goal' ? 1 : 0)
   const opponentPenaltyScore = shootout.opponentPenaltyScore + (team === 'opponent' && result === 'goal' ? 1 : 0)

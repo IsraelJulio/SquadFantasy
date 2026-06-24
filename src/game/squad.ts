@@ -8,6 +8,8 @@ export interface SquadStrength {
   formationBoost: number
   strategyBoost: number
   comebackBoost: number
+  tacticalMatchupBoost: number
+  experienceBoost: number
 }
 
 const strategyBoosts: Record<Strategy, number> = {
@@ -90,17 +92,17 @@ export function calculateStrategyBoost(strategy: Strategy): number {
 
 export function calculateComebackBoost(losingStreak: number): number {
   const streak = Math.max(0, losingStreak)
-  return streak >= 3 ? 1.1 : 1 + streak * 0.03
+  return streak >= 3 ? 1.15 : 1 + streak * 0.05
 }
 
-export function calculateActiveLineupStrength(starters: GamePlayer[], coach: GameCoach | undefined, formation: Formation, strategy: Strategy, comebackBoost = 1): SquadStrength {
+export function calculateActiveLineupStrength(starters: GamePlayer[], coach: GameCoach | undefined, formation: Formation, strategy: Strategy, comebackBoost = 1, tacticalMatchupBoost = 1, experienceBoost = 1): SquadStrength {
   const athletes = athletesFrom(starters)
   const playersAverage = average(athletes.map((player) => player.overall))
   const coachBoost = calculateCoachBoost(coach)
   const formationBoost = calculateFormationBoost(formation, athletes)
   const strategyBoost = calculateStrategyBoost(strategy)
-  const finalStrength = playersAverage * coachBoost * formationBoost * strategyBoost * comebackBoost
-  return { finalStrength, playersAverage, coachBoost, formationBoost, strategyBoost, comebackBoost }
+  const finalStrength = playersAverage * coachBoost * formationBoost * strategyBoost * comebackBoost * tacticalMatchupBoost * experienceBoost
+  return { finalStrength, playersAverage, coachBoost, formationBoost, strategyBoost, comebackBoost, tacticalMatchupBoost, experienceBoost }
 }
 
 export function calculateSquadStrength(squad: GamePlayer[], formation: Formation, strategy: Strategy, losingStreak = 0): SquadStrength {

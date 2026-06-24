@@ -12,13 +12,14 @@ import { createMatchSimulation } from './game/simulation'
 import { createDefaultLineup, validateStartingLineup } from './game/squad'
 import { applyMatch, opponentFor, stageFor } from './game/tournament'
 import { campaignRepository } from './repository/campaignRepository'
-import type { Formation, GameCampaign, GamePlayer, MatchSimulationPlan, Opponent, Strategy } from './types'
+import type { Difficulty, Formation, GameCampaign, GamePlayer, MatchSimulationPlan, Opponent, Strategy } from './types'
 
 export function App() {
   const [campaigns, setCampaigns] = useState(() => campaignRepository.list())
   const [campaign, setCampaign] = useState<GameCampaign | null>(null)
   const [formation, setFormation] = useState<Formation>('DIAMOND_3_1')
   const [strategy, setStrategy] = useState<Strategy>('Equilibrado')
+  const [difficulty, setDifficulty] = useState<Difficulty>('NORMAL')
   const [activeSimulation, setActiveSimulation] = useState<{ plan: MatchSimulationPlan; opponent: Opponent } | null>(null)
   const completedMatches = useRef(new Set<string>())
 
@@ -37,6 +38,7 @@ export function App() {
     setCampaigns(campaignRepository.list())
     setFormation('DIAMOND_3_1')
     setStrategy('Equilibrado')
+    setDifficulty('NORMAL')
     setActiveSimulation(null)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
@@ -45,6 +47,7 @@ export function App() {
     setCampaign(next)
     setFormation(next.selectedFormation ?? 'DIAMOND_3_1')
     setStrategy(next.selectedStrategy ?? 'Equilibrado')
+    setDifficulty(next.selectedDifficulty ?? 'NORMAL')
     setActiveSimulation(null)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
@@ -65,7 +68,7 @@ export function App() {
 
   function confirmTactics() {
     if (!campaign) return
-    persist({ ...campaign, selectedFormation: formation, selectedStrategy: strategy, status: 'draft', updatedAt: new Date().toISOString() })
+    persist({ ...campaign, selectedFormation: formation, selectedStrategy: strategy, selectedDifficulty: difficulty, status: 'draft', updatedAt: new Date().toISOString() })
   }
 
   function saveLineup(starterIds: string[]) {
@@ -76,13 +79,19 @@ export function App() {
     persist({ ...campaign, starterIds, updatedAt: new Date().toISOString() })
   }
 
+  function saveStrategy(nextStrategy: Strategy) {
+    if (!campaign) return
+    setStrategy(nextStrategy)
+    persist({ ...campaign, selectedStrategy: nextStrategy, updatedAt: new Date().toISOString() })
+  }
+
   function playMatch() {
     if (!campaign?.selectedFormation || !campaign.selectedStrategy || activeSimulation) return
     const starters = squad.filter((player) => campaign.starterIds.includes(player.id))
     const bench = squad.filter((player) => player.position !== 'TECNICO' && !campaign.starterIds.includes(player.id))
     if (validateStartingLineup(starters, bench, campaign.selectedFormation).length > 0) return
     const opponent = opponentFor(campaign)
-    const plan = createMatchSimulation(campaign.id, campaign.matches.length, squad, campaign.starterIds, campaign.selectedFormation, campaign.selectedStrategy, stageFor(campaign), campaign.losingStreak)
+    const plan = createMatchSimulation(campaign.id, campaign.matches.length, squad, campaign.starterIds, campaign.selectedFormation, campaign.selectedStrategy, stageFor(campaign), campaign.losingStreak, campaign.selectedDifficulty)
     setActiveSimulation({ plan, opponent })
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
@@ -111,13 +120,13 @@ export function App() {
   } else if (!campaign) {
     screen = <HomeScreen campaigns={campaigns} onStart={startCampaign} onOpen={openCampaign} onDelete={deleteCampaign} />
   } else if (campaign.status === 'tactics') {
-    screen = <TacticsScreen formation={formation} strategy={strategy} onFormation={setFormation} onStrategy={setStrategy} onConfirm={confirmTactics} />
+    screen = <TacticsScreen formation={formation} difficulty={difficulty} onFormation={setFormation} onDifficulty={setDifficulty} onConfirm={confirmTactics} />
   } else if (campaign.status === 'draft') {
     screen = <DraftScreen selected={squad} team={draftTeam} formation={campaign.selectedFormation!} onSelect={selectPlayer} />
   } else if (campaign.status === 'active') {
     const opponent = opponentFor(campaign)
     const bestPlayer = squad.filter((player) => player.position !== 'TECNICO').sort((a, b) => b.overall - a.overall)[0]
-    screen = <TournamentScreen campaign={campaign} opponent={opponent} squad={squad} bestPlayer={bestPlayer} onPlay={playMatch} onSaveLineup={saveLineup} />
+    screen = <TournamentScreen campaign={campaign} opponent={opponent} squad={squad} bestPlayer={bestPlayer} onPlay={playMatch} onSaveLineup={saveLineup} onStrategy={saveStrategy} />
   } else {
     screen = <FinalScreen campaign={campaign} onNew={startCampaign} onHome={goHome} />
   }

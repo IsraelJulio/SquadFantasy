@@ -2,9 +2,10 @@ import { describe, expect, it } from 'vitest'
 import { opponents } from '../data/opponents'
 import { players } from '../data/players'
 import type { Formation, GameAthlete, GameCampaign, GamePlayer } from '../types'
+import { calculateDifficultyBoost, calculateTacticalMatchup } from './balance'
 import { getDraftPlayerAvailability, getDraftTeam, getNextDraftPosition, validateDraftPick, validateSquadForFormation } from './draft'
 import { getRequiredSquadByFormation } from './formations'
-import { applySubstitution, createInitialMatchState, createMatchSimulation, finalizeMatch, simulateNextMinute } from './simulation'
+import { applySubstitution, calculateLiveMatchStrengths, createInitialMatchState, createMatchSimulation, finalizeMatch, simulateNextMinute } from './simulation'
 import { calculateActiveLineupStrength, calculateCoachBoost, calculateComebackBoost, calculateEffectiveOverall, coachFrom, createDefaultLineup, getCompatibleSubstitutes, updatePlayerStamina, validateStartingLineup } from './squad'
 import { applyMatch, pointsFor } from './tournament'
 
@@ -18,7 +19,7 @@ const starterIds = createDefaultLineup(squad, 'DIAMOND_3_1')
 
 function campaign(): GameCampaign {
   const now = new Date().toISOString()
-  return { id: 'test-campaign', status: 'active', currentStage: 'Fase de grupos', selectedFormation: 'DIAMOND_3_1', selectedStrategy: 'Equilibrado', playerIds: squad.map((player) => player.id), starterIds, losingStreak: 0, matches: [], groupPoints: 0, createdAt: now, updatedAt: now }
+  return { id: 'test-campaign', status: 'active', currentStage: 'Fase de grupos', selectedFormation: 'DIAMOND_3_1', selectedStrategy: 'Equilibrado', selectedDifficulty: 'NORMAL', playerIds: squad.map((player) => player.id), starterIds, losingStreak: 0, matches: [], groupPoints: 0, createdAt: now, updatedAt: now }
 }
 
 describe('dados simplificados', () => {
@@ -89,7 +90,13 @@ describe('overall, stamina e força', () => {
 
   it('perde 2 em quadra, recupera 4 no banco e respeita os limites', () => {
     const athlete = players.find((player): player is GameAthlete => player.position === 'ALA')!
-    expect(updatePlayerStamina(athlete, true).stamina).toBe(98)
+    const tired = updatePlayerStamina(athlete, true)
+    const recovered = updatePlayerStamina({ ...athlete, stamina: 50, overall: calculateEffectiveOverall({ overallOriginal: athlete.overallOriginal, stamina: 50 }) }, false)
+    expect(tired.stamina).toBe(98)
+    expect(tired.overall).toBe(calculateEffectiveOverall(tired))
+    expect(recovered.stamina).toBe(54)
+    expect(recovered.overall).toBe(calculateEffectiveOverall(recovered))
+    expect(recovered.overall).toBeLessThanOrEqual(athlete.overallOriginal)
     expect(updatePlayerStamina({ ...athlete, stamina: 99 }, false).stamina).toBe(100)
     expect(updatePlayerStamina({ ...athlete, stamina: 1 }, true).stamina).toBe(0)
   })
@@ -104,7 +111,16 @@ describe('overall, stamina e força', () => {
   })
 
   it('limita a reação do time conforme a sequência de derrotas', () => {
-    expect([0, 1, 2, 3, 7].map(calculateComebackBoost)).toEqual([1, 1.03, 1.06, 1.1, 1.1])
+    expect([0, 1, 2, 3, 7].map(calculateComebackBoost)).toEqual([1, 1.05, 1.1, 1.15, 1.15])
+  })
+
+  it('aplica dificuldade e confronto tático sem beneficiar o adversário com anti-frustração', () => {
+    expect([calculateDifficultyBoost('CASUAL'), calculateDifficultyBoost('NORMAL'), calculateDifficultyBoost('CHALLENGE')]).toEqual([1.08, 1.05, 1])
+    expect(calculateDifficultyBoost('NORMAL', 70, 84)).toBeCloseTo(1.38)
+    expect(calculateDifficultyBoost('NORMAL', 84, 70)).toBe(1.05)
+    expect(calculateTacticalMatchup('Contra-ataque', 'Ofensivo')).toMatchObject({ edge: 0.04, userBoost: 1.02, opponentBoost: 0.98 })
+    expect(calculateTacticalMatchup('Ofensivo', 'Contra-ataque')).toMatchObject({ edge: -0.04, userBoost: 0.98, opponentBoost: 1.02 })
+    expect(calculateTacticalMatchup('Equilibrado', 'Ofensivo')).toMatchObject({ edge: 0, userBoost: 1, opponentBoost: 1 })
   })
 
   it('valida titulares e filtra reservas compatíveis', () => {
@@ -124,6 +140,34 @@ describe('simulação incremental', () => {
     expect(next.userPlayers.filter((player) => next.activeIds.includes(player.id)).every((player) => player.stamina === 98)).toBe(true)
     expect(next.userPlayers.filter((player) => next.benchIds.includes(player.id)).every((player) => player.stamina === 100)).toBe(true)
     expect(next.opponentPlayers.filter((player) => next.opponentActiveIds.includes(player.id)).every((player) => player.stamina === 98)).toBe(true)
+    expect(next.opponentPlayers.filter((player) => next.opponentBenchIds.includes(player.id)).every((player) => player.stamina === 100)).toBe(true)
+    expect([...next.userPlayers, ...next.opponentPlayers].every((player) => player.overall === calculateEffectiveOverall(player))).toBe(true)
+  })
+
+  it('recupera os reservas dos dois times e usa apenas o overall atual dos titulares', () => {
+    const plan = createMatchSimulation('current-overall', 0, squad, starterIds, 'DIAMOND_3_1', 'Equilibrado', 'Fase de grupos', 2)
+    const initial = createInitialMatchState(plan, opponents[0])
+    const userBenchId = initial.benchIds[0]
+    const opponentBenchId = initial.opponentBenchIds[0]
+    const prepared = {
+      ...initial,
+      userPlayers: initial.userPlayers.map((player) => ({ ...player, stamina: userBenchId === player.id ? 50 : player.stamina, overall: userBenchId === player.id ? calculateEffectiveOverall({ overallOriginal: player.overallOriginal, stamina: 50 }) : player.overall })),
+      opponentPlayers: initial.opponentPlayers.map((player) => ({ ...player, stamina: opponentBenchId === player.id ? 50 : player.stamina, overall: opponentBenchId === player.id ? calculateEffectiveOverall({ overallOriginal: player.overallOriginal, stamina: 50 }) : player.overall })),
+    }
+    const next = simulateNextMinute(prepared, opponents[0])
+    expect(next.userPlayers.find((player) => player.id === userBenchId)?.stamina).toBe(54)
+    expect(next.opponentPlayers.find((player) => player.id === opponentBenchId)?.stamina).toBe(54)
+
+    const strengths = calculateLiveMatchStrengths(next, opponents[0])
+    const userActive = next.userPlayers.filter((player) => next.activeIds.includes(player.id))
+    const opponentActive = next.opponentPlayers.filter((player) => next.opponentActiveIds.includes(player.id))
+    expect(strengths.user.playersAverage).toBe(userActive.reduce((sum, player) => sum + player.overall, 0) / userActive.length)
+    expect(strengths.opponent.playersAverage).toBe(opponentActive.reduce((sum, player) => sum + player.overall, 0) / opponentActive.length)
+    expect(strengths.user.comebackBoost).toBe(1.1)
+    expect(strengths.opponent.comebackBoost).toBe(1)
+    expect(strengths.user.experienceBoost).toBeGreaterThanOrEqual(1.05)
+    expect(strengths.opponent.experienceBoost).toBe(1)
+    expect(strengths.opponent.coachBoost).toBe(calculateCoachBoost(next.opponentCoach))
   })
 
   it('recupera no banco e a substituição altera imediatamente os ativos', () => {
@@ -133,10 +177,36 @@ describe('simulação incremental', () => {
     const outgoing = state.userPlayers.find((player) => starterIds.includes(player.id) && player.position === 'ALA')!
     const incoming = state.userPlayers.find((player) => state.benchIds.includes(player.id) && player.position === 'ALA')!
     const changed = applySubstitution(state, { playerOutId: outgoing.id, playerInId: incoming.id })
+    const changedStrength = calculateLiveMatchStrengths(changed, opponents[0])
+    const changedActive = changed.userPlayers.filter((player) => changed.activeIds.includes(player.id))
     const afterMinute = simulateNextMinute(changed, opponents[0])
+    expect(changedStrength.user.playersAverage).toBe(changedActive.reduce((sum, player) => sum + player.overall, 0) / changedActive.length)
     expect(afterMinute.userPlayers.find((player) => player.id === outgoing.id)?.stamina).toBe(outgoing.stamina + 4)
     expect(afterMinute.userPlayers.find((player) => player.id === incoming.id)?.stamina).toBe(incoming.stamina - 2)
     expect(changed.events.at(-1)).toMatchObject({ type: 'substitution', playerOut: outgoing.name, playerIn: incoming.name })
+  })
+
+  it('troca automaticamente um adversário cansado e usa a nova escalação no minuto seguinte', () => {
+    const plan = createMatchSimulation('opponent-sub', 0, squad, starterIds, 'DIAMOND_3_1', 'Equilibrado', 'Fase de grupos')
+    const initial = createInitialMatchState(plan, opponents[0])
+    const outgoingId = initial.opponentActiveIds.find((id) => initial.opponentPlayers.find((player) => player.id === id)?.position === 'ALA')!
+    const incomingId = initial.opponentBenchIds.find((id) => initial.opponentPlayers.find((player) => player.id === id)?.position === 'ALA')!
+    const tired = {
+      ...initial,
+      minute: 5,
+      opponentPlayers: initial.opponentPlayers.map((player) => player.id === outgoingId ? { ...player, stamina: 10, overall: calculateEffectiveOverall({ overallOriginal: player.overallOriginal, stamina: 10 }) } : player),
+    }
+    const changed = simulateNextMinute(tired, opponents[0])
+    expect(changed.opponentActiveIds).toContain(incomingId)
+    expect(changed.opponentBenchIds).toContain(outgoingId)
+    expect(changed.events.at(-1)).toMatchObject({ type: 'substitution', team: 'opponent' })
+
+    const afterMinute = simulateNextMinute(changed, opponents[0])
+    expect(afterMinute.opponentPlayers.find((player) => player.id === outgoingId)?.stamina).toBe(12)
+    expect(afterMinute.opponentPlayers.find((player) => player.id === incomingId)?.stamina).toBe(98)
+    const strengths = calculateLiveMatchStrengths(afterMinute, opponents[0])
+    const active = afterMinute.opponentPlayers.filter((player) => afterMinute.opponentActiveIds.includes(player.id))
+    expect(strengths.opponent.playersAverage).toBe(active.reduce((sum, player) => sum + player.overall, 0) / active.length)
   })
 
   it('simula 40 minutos com placar consistente e substituições do adversário', () => {

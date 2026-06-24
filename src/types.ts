@@ -2,6 +2,7 @@ export type AthletePosition = 'GOLEIRO' | 'FIXO' | 'ALA' | 'PIVO'
 export type FutsalPosition = AthletePosition | 'TECNICO'
 export type Formation = 'DIAMOND_3_1' | 'SQUARE_2_2' | 'FOUR_ZERO' | 'THREE_TWO'
 export type Strategy = 'Ofensivo' | 'Equilibrado' | 'Defensivo' | 'Contra-ataque' | 'Posse de bola'
+export type Difficulty = 'CASUAL' | 'NORMAL' | 'CHALLENGE'
 export type Stage = 'Fase de grupos' | 'Oitavas' | 'Quartas' | 'Semifinal' | 'Final'
 export type CampaignStatus = 'tactics' | 'draft' | 'active' | 'champion' | 'eliminated'
 export type MatchResult = 'victory' | 'draw' | 'defeat'
@@ -111,6 +112,7 @@ export interface MatchSimulationPlan {
   stage: Stage
   formation: Formation
   strategy: Strategy
+  difficulty: Difficulty
   squad: GamePlayer[]
   starterIds: string[]
   losingStreak: number
@@ -124,6 +126,7 @@ export interface GameCampaign {
   currentStage: Stage
   selectedFormation: Formation | null
   selectedStrategy: Strategy | null
+  selectedDifficulty: Difficulty
   playerIds: string[]
   starterIds: string[]
   losingStreak: number

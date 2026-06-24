@@ -22,7 +22,7 @@ import type {
   PenaltyShootoutState,
 } from "../types";
 
-export const SIMULATION_TICK_MS = 1900;
+export const SIMULATION_TICK_MS = 1500;
 const HALF_TIME_PAUSE_MS = 1_000;
 
 export function useMatchSimulation(
@@ -46,14 +46,17 @@ export function useMatchSimulation(
     onFinishedRef.current = onFinished;
   }, [onFinished]);
 
-  const completeMatch = useCallback((state: LiveMatchState, completedShootout?: PenaltyShootoutState) => {
-    if (completedRef.current) return;
-    completedRef.current = true;
-    const result = finalizeMatch(state, opponent, completedShootout);
-    setCompletedPlan(result);
-    setStatus("finished");
-    onFinishedRef.current(result);
-  }, [opponent]);
+  const completeMatch = useCallback(
+    (state: LiveMatchState, completedShootout?: PenaltyShootoutState) => {
+      if (completedRef.current) return;
+      completedRef.current = true;
+      const result = finalizeMatch(state, opponent, completedShootout);
+      setCompletedPlan(result);
+      setStatus("finished");
+      onFinishedRef.current(result);
+    },
+    [opponent],
+  );
 
   useEffect(() => {
     if (!["first_half", "half_time", "second_half"].includes(status)) return;
@@ -92,7 +95,10 @@ export function useMatchSimulation(
           "Fim de jogo. O árbitro encerra a partida.",
         );
         setLiveState(finishedState);
-        if (plan.stage !== "Fase de grupos" && finishedState.userScore === finishedState.opponentScore) {
+        if (
+          plan.stage !== "Fase de grupos" &&
+          finishedState.userScore === finishedState.opponentScore
+        ) {
           setShootout(createPenaltyShootout());
           setStatus("awaiting_penalties");
         } else completeMatch(finishedState);
@@ -121,7 +127,7 @@ export function useMatchSimulation(
   }
 
   function pauseForSubstitution() {
-    if (status !== "first_half" && status !== "second_half") return;
+    if (!["first_half", "half_time", "second_half"].includes(status)) return;
     resumeStatusRef.current = status;
     setStatus("paused");
   }
@@ -136,11 +142,11 @@ export function useMatchSimulation(
       const next = applySubstitution(current, substitution);
       return next;
     });
-    setStatus(resumeStatusRef.current);
   }
 
   function skipToEnd() {
-    if (["finished", "awaiting_penalties", "penalties"].includes(status)) return;
+    if (["finished", "awaiting_penalties", "penalties"].includes(status))
+      return;
     let finishedState = liveState;
     while (finishedState.minute < 40)
       finishedState = simulateNextMinute(finishedState, opponent);
@@ -150,7 +156,10 @@ export function useMatchSimulation(
       "Fim de jogo. O árbitro encerra a partida.",
     );
     setLiveState(finishedState);
-    if (plan.stage !== "Fase de grupos" && finishedState.userScore === finishedState.opponentScore) {
+    if (
+      plan.stage !== "Fase de grupos" &&
+      finishedState.userScore === finishedState.opponentScore
+    ) {
       setShootout(createPenaltyShootout());
       setStatus("awaiting_penalties");
     } else completeMatch(finishedState);
@@ -186,7 +195,10 @@ export function useMatchSimulation(
   const benchPlayers = liveState.benchIds
     .map((id) => liveState.userPlayers.find((player) => player.id === id))
     .filter((player): player is GameAthlete => Boolean(player));
-  const penaltyParticipants = shootout.status === "in_progress" ? getPenaltyParticipants(liveState, shootout) : null;
+  const penaltyParticipants =
+    shootout.status === "in_progress"
+      ? getPenaltyParticipants(liveState, shootout)
+      : null;
 
   return {
     status,

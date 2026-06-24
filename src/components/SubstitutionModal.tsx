@@ -20,6 +20,7 @@ interface SubstitutionModalProps {
 export function SubstitutionModal({ mode, activePlayers, benchPlayers, coach, formationLabel, validationErrors = [], onConfirm, onClose, onSave }: SubstitutionModalProps) {
   const [outId, setOutId] = useState<string | null>(null)
   const [lastSwap, setLastSwap] = useState<string | null>(null)
+  const [swapCount, setSwapCount] = useState(0)
   const active = activePlayers.filter((player): player is GameAthlete => player.position !== 'TECNICO')
   const bench = benchPlayers.filter((player): player is GameAthlete => player.position !== 'TECNICO')
   const outgoing = active.find((player) => player.id === outId)
@@ -35,6 +36,7 @@ export function SubstitutionModal({ mode, activePlayers, benchPlayers, coach, fo
     if (!outgoing) return
     onConfirm(outgoing.id, incoming.id)
     setLastSwap(`Troca realizada: ${outgoing.name} saiu do time titular e ${incoming.name} entrou.`)
+    setSwapCount((current) => current + 1)
     setOutId(null)
   }
 
@@ -52,7 +54,7 @@ export function SubstitutionModal({ mode, activePlayers, benchPlayers, coach, fo
           <div>
             <span className="eyebrow">{preMatch ? formationLabel?.toUpperCase() : 'RELÓGIO PAUSADO'}</span>
             <h2 id="sub-title">{preMatch ? 'Definir time titular' : 'Fazer substituição'}</h2>
-            <p>{preMatch ? 'Monte seu time titular antes da partida. Clique em um jogador da quadra para ver no banco quais atletas podem entrar naquela posição. Depois, selecione o substituto desejado para trocar os jogadores. O técnico não entra em quadra, mas aplica bônus ao desempenho do time.' : 'Jogadores cansados perdem overall durante a partida. Use o banco para recuperar energia: atletas no banco descansam aos poucos e podem voltar mais fortes depois.'}</p>
+            <p>{preMatch ? 'Monte seu time titular antes da partida. Clique em um jogador da quadra para ver no banco quais atletas podem entrar naquela posição. Depois, selecione o substituto desejado para trocar os jogadores. O técnico não entra em quadra, mas aplica bônus ao desempenho do time.' : 'Faça quantas trocas precisar enquanto o relógio está pausado. Titulares e banco são atualizados após cada substituição; quando terminar, use o botão abaixo para voltar ao jogo.'}</p>
           </div>
           <button className="modal-close" onClick={onClose} aria-label="Fechar">×</button>
         </header>
@@ -81,7 +83,7 @@ export function SubstitutionModal({ mode, activePlayers, benchPlayers, coach, fo
         {preMatch && <div className={`lineup-validation ${validationErrors.length ? 'invalid' : 'valid'}`} role="status">{validationErrors.length ? validationErrors.map((error) => <span key={error}>• {error}</span>) : <span>✓ Escalação válida para iniciar a partida.</span>}</div>}
 
         <footer>
-          <button className="button button--ghost" onClick={onClose}>{preMatch ? 'Cancelar' : 'Cancelar e retomar'}</button>
+          <button className={`button ${preMatch ? 'button--ghost' : 'button--primary'}`} onClick={onClose}>{preMatch ? 'Cancelar' : `${swapCount > 0 ? `Concluir ${swapCount} ${swapCount === 1 ? 'troca' : 'trocas'} e ` : ''}voltar ao jogo`}</button>
           {preMatch && <button className="button button--primary" disabled={validationErrors.length > 0} onClick={onSave}>Confirmar escalação</button>}
         </footer>
       </section>

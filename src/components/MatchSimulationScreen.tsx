@@ -13,18 +13,21 @@ export function MatchSimulationScreen({ campaign, opponent, plan, onFinished, on
   const finished = simulation.status === 'finished'
   const penaltiesVisible = ['awaiting_penalties', 'penalties'].includes(simulation.status)
   const matchRunning = ['first_half', 'half_time', 'second_half'].includes(simulation.status)
+  const matchNotStarted = simulation.status === 'not_started'
   const result = simulation.completedPlan?.match
   const continueLabel = campaign.status === 'active' ? 'Jogar próxima partida' : 'Finalizar campanha'
   return (
     <main className="game-shell match-simulation-screen">
       <header className="simulation-heading"><span className="eyebrow">{plan.stage.toUpperCase()} · AO VIVO</span><h1>Acompanhe a <em>partida</em></h1></header>
       <MatchScoreboard opponentName={`${opponent.name} ${opponent.year}`} userScore={simulation.userScore} opponentScore={simulation.opponentScore} status={simulation.status} minute={simulation.currentMinute} />
-      <div className="simulation-controls" aria-label="Controles da simulação">
-        <button className="button button--primary" onClick={simulation.start} disabled={simulation.status !== 'not_started'}>Iniciar partida</button>
-        <button className="button button--substitution" onClick={simulation.pauseForSubstitution} disabled={!['first_half', 'second_half'].includes(simulation.status)}>Fazer substituição</button>
-        <button className="button button--ghost" onClick={simulation.accelerate} disabled={!matchRunning}>Acelerar · {simulation.speed}×</button>
-        <button className="button button--ghost" onClick={simulation.skipToEnd} disabled={!matchRunning}>Pular para o final</button>
-      </div>
+      {(matchNotStarted || matchRunning) && <div className="simulation-controls" aria-label="Controles da simulação">
+        {matchNotStarted && <button className="button button--primary" onClick={simulation.start}>Iniciar partida</button>}
+        {matchRunning && <>
+          <button className="button button--substitution" onClick={simulation.pauseForSubstitution}>Fazer substituição</button>
+          <button className="button button--ghost" onClick={simulation.accelerate}>Acelerar · {simulation.speed}×</button>
+          <button className="button button--ghost" onClick={simulation.skipToEnd}>Pular para o final</button>
+        </>}
+      </div>}
       {penaltiesVisible && <PenaltyShootoutPanel opponentName={`${opponent.name} ${opponent.year}`} regulationScore={{ user: simulation.userScore, opponent: simulation.opponentScore }} shootout={simulation.shootout} participants={simulation.penaltyParticipants} onStart={simulation.beginPenalties} onShoot={simulation.takePenalty} onSkip={simulation.skipPenalties} />}
       <MatchEventHighlight event={simulation.latestGoal} />
       <MatchTimeline events={simulation.visibleEvents} />

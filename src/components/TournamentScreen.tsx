@@ -1,7 +1,8 @@
 import { useState } from 'react'
+import { calculateTacticalMatchup } from '../game/balance'
 import { formationTitle } from '../game/formations'
 import { validateStartingLineup } from '../game/squad'
-import type { GameCampaign, GamePlayer, Opponent } from '../types'
+import type { GameCampaign, GamePlayer, Opponent, Strategy } from '../types'
 import { LineupModal } from './LineupModal'
 
 interface TournamentScreenProps {
@@ -11,11 +12,13 @@ interface TournamentScreenProps {
   bestPlayer: GamePlayer
   onPlay: () => void
   onSaveLineup: (starterIds: string[]) => void
+  onStrategy: (strategy: Strategy) => void
 }
 
 const stages = ['Grupos', 'Oitavas', 'Quartas', 'Semifinal', 'Final']
+const strategies: Strategy[] = ['Ofensivo', 'Equilibrado', 'Defensivo', 'Contra-ataque', 'Posse de bola']
 
-export function TournamentScreen({ campaign, opponent, squad, bestPlayer, onPlay, onSaveLineup }: TournamentScreenProps) {
+export function TournamentScreen({ campaign, opponent, squad, bestPlayer, onPlay, onSaveLineup, onStrategy }: TournamentScreenProps) {
   const [editingLineup, setEditingLineup] = useState(false)
   const stageIndex = campaign.matches.length < 3 ? 0 : Math.min(campaign.matches.length - 2, 4)
   const groupMatches = campaign.matches.filter((match) => match.stage === 'Fase de grupos')
@@ -36,6 +39,15 @@ export function TournamentScreen({ campaign, opponent, squad, bestPlayer, onPlay
         <article><span>DESTAQUE DO QUINTETO</span><strong>{bestPlayer.name}</strong><small>{bestPlayer.overall} OVR · {bestPlayer.position}</small></article>
         <article><span>FORÇA DO ADVERSÁRIO</span><div className="level"><i><em style={{ width: `${opponent.level}%` }} /></i><strong>{opponent.level}</strong></div><small>{opponent.strategy}</small></article>
         {campaign.currentStage === 'Fase de grupos' && <article><span>CLASSIFICAÇÃO</span><strong>{campaign.groupPoints} pontos</strong><small>{groupMatches.length}/3 jogos · precisa de 4 pts</small></article>}
+      </section>
+      <section className="prematch-strategy" aria-labelledby="prematch-strategy-title">
+        <div><span>AJUSTE TÁTICO</span><strong id="prematch-strategy-title">Escolha como enfrentar {opponent.name}</strong></div>
+        <div className="prematch-strategy__options">{strategies.map((item) => {
+          const edge = calculateTacticalMatchup(item, opponent.strategy).edge
+          const matchupLabel = edge > 0 ? `Favorável +${Math.round(edge * 100)}%` : edge < 0 ? `Desfavorável ${Math.round(edge * 100)}%` : 'Neutro'
+          return <button aria-pressed={campaign.selectedStrategy === item} className={campaign.selectedStrategy === item ? 'active' : ''} key={item} onClick={() => onStrategy(item)}><strong>{item}</strong><small className={edge > 0 ? 'positive' : edge < 0 ? 'negative' : ''}>{matchupLabel}</small></button>
+        })}</div>
+        <p>O adversário joga no estilo <b>{opponent.strategy}</b>. Um confronto favorável melhora sua força sem substituir o overall ou a stamina.</p>
       </section>
       <div className="prematch-actions">
         <button className="button button--primary simulate-button" onClick={onPlay} disabled={lineupErrors.length > 0}>Iniciar partida <span>▶</span></button>
