@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { opponents } from '../data/opponents'
 import { players } from '../data/players'
 import type { Formation, GameAthlete, GameCampaign, GamePlayer } from '../types'
-import { getDraftOptions, getNextDraftPosition, validateDraftPick, validateSquadForFormation } from './draft'
+import { getDraftPlayerAvailability, getDraftTeam, getNextDraftPosition, validateDraftPick, validateSquadForFormation } from './draft'
 import { getRequiredSquadByFormation } from './formations'
 import { applySubstitution, createInitialMatchState, createMatchSimulation, finalizeMatch, simulateNextMinute } from './simulation'
 import { calculateActiveLineupStrength, calculateCoachBoost, calculateComebackBoost, calculateEffectiveOverall, coachFrom, createDefaultLineup, getCompatibleSubstitutes, updatePlayerStamina, validateStartingLineup } from './squad'
@@ -47,14 +47,35 @@ describe('draft por formação', () => {
     expect(validateSquadForFormation(fourZeroSquad, 'FOUR_ZERO')).toEqual([])
   })
 
-  it('oferece opções únicas da próxima posição e chega ao técnico por último', () => {
-    const options = getDraftOptions('campaign-one', [], 'DIAMOND_3_1')
-    expect(options).toHaveLength(4)
-    expect(options.every((player) => player.position === 'GOLEIRO')).toBe(true)
+  it('oferece uma equipe completa por rodada e chega ao técnico como última necessidade', () => {
+    const team = getDraftTeam('campaign-one', [], 'DIAMOND_3_1')
+    expect(team?.name).toBeTruthy()
+    expect(new Set(team?.players.map((player) => player.position)).size).toBeGreaterThan(3)
     const athletes = squad.filter((player) => player.position !== 'TECNICO')
     expect(getNextDraftPosition(athletes, 'DIAMOND_3_1')).toBe('TECNICO')
     const pivot = players.find((player) => player.position === 'PIVO')!
-    expect(validateDraftPick(pivot, squadFor('SQUARE_2_2'), 'SQUARE_2_2')).toContain('não é usado')
+    expect(validateDraftPick(pivot, squadFor('SQUARE_2_2'), 'SQUARE_2_2')).toContain('não usa')
+  })
+
+  it('bloqueia duplicados, posições completas e posições não usadas', () => {
+    const goalkeeper = players.find((player) => player.position === 'GOLEIRO')!
+    const twoGoalkeepers = players.filter((player) => player.position === 'GOLEIRO').slice(0, 2)
+    expect(getDraftPlayerAvailability(goalkeeper, [goalkeeper], 'DIAMOND_3_1')).toMatchObject({ available: false, code: 'already-picked' })
+    expect(getDraftPlayerAvailability(players.find((player) => player.position === 'FIXO')!, [], 'FOUR_ZERO')).toMatchObject({ available: false, code: 'unused-position' })
+    expect(getDraftPlayerAvailability(players.filter((player) => player.position === 'GOLEIRO')[2], twoGoalkeepers, 'DIAMOND_3_1')).toMatchObject({ available: false, code: 'position-complete' })
+  })
+
+  it('completa 10 atletas e 1 técnico escolhendo apenas membros disponíveis das equipes', () => {
+    const selected: GamePlayer[] = []
+    while (selected.length < 11) {
+      const team = getDraftTeam('complete-team-draft', selected, 'DIAMOND_3_1')
+      const choice = team?.players.find((player) => getDraftPlayerAvailability(player, selected, 'DIAMOND_3_1').available)
+      expect(choice).toBeTruthy()
+      selected.push(choice!)
+    }
+    expect(selected.filter((player) => player.position !== 'TECNICO')).toHaveLength(10)
+    expect(selected.filter((player) => player.position === 'TECNICO')).toHaveLength(1)
+    expect(validateSquadForFormation(selected, 'DIAMOND_3_1')).toEqual([])
   })
 })
 

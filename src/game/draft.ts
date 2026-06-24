@@ -1,16 +1,29 @@
-import { players } from '../data/players'
-import type { Formation, FutsalPosition, GamePlayer } from '../types'
+import { draftTeams } from '../data/draftTeams'
+import type { DraftTeam, Formation, FutsalPosition, GamePlayer } from '../types'
 import { ATHLETE_POSITIONS, getRequiredSquadByFormation } from './formations'
 import { hashSeed, seededRandom, shuffled } from './random'
 
 export function validateDraftPick(player: GamePlayer, currentSquad: GamePlayer[], formation: Formation): string | null {
-  if (currentSquad.some((item) => item.id === player.id)) return 'Este nome já foi contratado.'
+  return getDraftPlayerAvailability(player, currentSquad, formation).reason
+}
+
+export interface DraftPlayerAvailability {
+  available: boolean
+  reason: string | null
+  code: 'available' | 'already-picked' | 'unused-position' | 'position-complete' | 'athletes-complete' | 'squad-complete'
+}
+
+export function getDraftPlayerAvailability(player: GamePlayer, currentSquad: GamePlayer[], formation: Formation): DraftPlayerAvailability {
+  const unavailable = (reason: string, code: Exclude<DraftPlayerAvailability['code'], 'available'>): DraftPlayerAvailability => ({ available: false, reason, code })
+  if (currentSquad.some((item) => item.id === player.id)) return unavailable('Jogador já escolhido.', 'already-picked')
   const required = getRequiredSquadByFormation(formation)
-  const count = currentSquad.filter((item) => item.position === player.position).length
-  if (required[player.position] === 0) return `O ${player.position} não é usado nesta formação.`
-  if (count >= required[player.position]) return `A quantidade de ${player.position} já está completa.`
-  if (currentSquad.length >= 11) return 'O elenco já atingiu 10 atletas e 1 técnico.'
-  return null
+  const currentForPosition = currentSquad.filter((item) => item.position === player.position).length
+  if (required[player.position] === 0) return unavailable('Sua formação não usa essa posição.', 'unused-position')
+  if (currentForPosition >= required[player.position]) return unavailable(player.position === 'TECNICO' ? 'Você já escolheu seu técnico.' : 'Essa posição já foi completada.', 'position-complete')
+  const athleteCount = currentSquad.filter((item) => item.position !== 'TECNICO').length
+  if (player.position !== 'TECNICO' && athleteCount >= 10) return unavailable('As 10 vagas de atletas já foram preenchidas.', 'athletes-complete')
+  if (currentSquad.length >= 11) return unavailable('O elenco já atingiu 10 atletas e 1 técnico.', 'squad-complete')
+  return { available: true, reason: null, code: 'available' }
 }
 
 export function getNextDraftPosition(squad: GamePlayer[], formation: Formation): FutsalPosition | null {
@@ -19,13 +32,10 @@ export function getNextDraftPosition(squad: GamePlayer[], formation: Formation):
   return order.find((position) => squad.filter((player) => player.position === position).length < required[position]) ?? null
 }
 
-export function getDraftOptions(campaignId: string, selectedIds: string[], formation: Formation): GamePlayer[] {
-  const squad = selectedIds.map((id) => players.find((player) => player.id === id)).filter((player): player is GamePlayer => Boolean(player))
-  const position = getNextDraftPosition(squad, formation)
-  if (!position) return []
-  const random = seededRandom(hashSeed(`${campaignId}-${selectedIds.length}-${position}`))
-  const available = players.filter((player) => player.position === position && !selectedIds.includes(player.id))
-  return shuffled(available, random).slice(0, 4)
+export function getDraftTeam(campaignId: string, currentSquad: GamePlayer[], formation: Formation): DraftTeam | null {
+  if (currentSquad.length >= 11) return null
+  const random = seededRandom(hashSeed(`${campaignId}-team-round-${currentSquad.length}`))
+  return shuffled(draftTeams, random).find((team) => team.players.some((player) => getDraftPlayerAvailability(player, currentSquad, formation).available)) ?? null
 }
 
 export function validateSquadForFormation(squad: GamePlayer[], formation: Formation): string[] {

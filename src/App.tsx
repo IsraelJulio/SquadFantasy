@@ -7,7 +7,7 @@ import { MatchSimulationScreen } from './components/MatchSimulationScreen'
 import { TacticsScreen } from './components/TacticsScreen'
 import { TournamentScreen } from './components/TournamentScreen'
 import { playerById } from './data/players'
-import { getDraftOptions, validateDraftPick } from './game/draft'
+import { getDraftTeam, validateDraftPick } from './game/draft'
 import { createMatchSimulation } from './game/simulation'
 import { createDefaultLineup, validateStartingLineup } from './game/squad'
 import { applyMatch, opponentFor, stageFor } from './game/tournament'
@@ -23,7 +23,7 @@ export function App() {
   const completedMatches = useRef(new Set<string>())
 
   const squad = useMemo(() => campaign?.playerIds.map((id) => playerById.get(id)).filter((player): player is GamePlayer => Boolean(player)) ?? [], [campaign])
-  const options = useMemo(() => campaign?.selectedFormation ? getDraftOptions(campaign.id, campaign.playerIds, campaign.selectedFormation) : [], [campaign])
+  const draftTeam = useMemo(() => campaign?.selectedFormation ? getDraftTeam(campaign.id, squad, campaign.selectedFormation) : null, [campaign, squad])
 
   function persist(next: GameCampaign) {
     campaignRepository.save(next)
@@ -113,7 +113,7 @@ export function App() {
   } else if (campaign.status === 'tactics') {
     screen = <TacticsScreen formation={formation} strategy={strategy} onFormation={setFormation} onStrategy={setStrategy} onConfirm={confirmTactics} />
   } else if (campaign.status === 'draft') {
-    screen = <DraftScreen selected={squad} options={options} formation={campaign.selectedFormation!} onSelect={selectPlayer} />
+    screen = <DraftScreen selected={squad} team={draftTeam} formation={campaign.selectedFormation!} onSelect={selectPlayer} />
   } else if (campaign.status === 'active') {
     const opponent = opponentFor(campaign)
     const bestPlayer = squad.filter((player) => player.position !== 'TECNICO').sort((a, b) => b.overall - a.overall)[0]

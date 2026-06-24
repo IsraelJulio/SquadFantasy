@@ -69,6 +69,15 @@ export interface GameCoach extends PersonBase {
 
 export type GamePlayer = GameAthlete | GameCoach
 
+export interface DraftTeam {
+  id: string
+  name: string
+  country: string
+  referenceYear?: number
+  flagUrl?: string
+  players: GamePlayer[]
+}
+
 export interface Opponent {
   id: string
   name: string
