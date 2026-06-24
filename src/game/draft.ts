@@ -32,10 +32,16 @@ export function getNextDraftPosition(squad: GamePlayer[], formation: Formation):
   return order.find((position) => squad.filter((player) => player.position === position).length < required[position]) ?? null
 }
 
-export function getDraftTeam(campaignId: string, currentSquad: GamePlayer[], formation: Formation): DraftTeam | null {
-  if (currentSquad.length >= 11) return null
+export function getAvailableDraftTeams(campaignId: string, currentSquad: GamePlayer[], formation: Formation): DraftTeam[] {
+  if (currentSquad.length >= 11) return []
   const random = seededRandom(hashSeed(`${campaignId}-team-round-${currentSquad.length}`))
-  return shuffled(draftTeams, random).find((team) => team.players.some((player) => getDraftPlayerAvailability(player, currentSquad, formation).available)) ?? null
+  return shuffled(draftTeams, random).filter((team) => team.players.some((player) => getDraftPlayerAvailability(player, currentSquad, formation).available))
+}
+
+export function getDraftTeam(campaignId: string, currentSquad: GamePlayer[], formation: Formation, drawIndex = 0): DraftTeam | null {
+  const availableTeams = getAvailableDraftTeams(campaignId, currentSquad, formation)
+  if (availableTeams.length === 0) return null
+  return availableTeams[Math.max(0, drawIndex) % availableTeams.length]
 }
 
 export function validateSquadForFormation(squad: GamePlayer[], formation: Formation): string[] {

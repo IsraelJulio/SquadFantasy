@@ -127,6 +127,7 @@ export interface GameCampaign {
   selectedFormation: Formation | null
   selectedStrategy: Strategy | null
   selectedDifficulty: Difficulty
+  teamRerollsUsed: number
   playerIds: string[]
   starterIds: string[]
   losingStreak: number

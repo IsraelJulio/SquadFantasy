@@ -15,7 +15,7 @@ function createMatch() {
   const plan = createMatchSimulation('controls-test', 0, squad, starterIds, 'DIAMOND_3_1', 'Equilibrado', 'Fase de grupos')
   const now = new Date().toISOString()
   const campaign: GameCampaign = {
-    id: 'controls-test', status: 'active', currentStage: 'Fase de grupos', selectedFormation: 'DIAMOND_3_1', selectedStrategy: 'Equilibrado', selectedDifficulty: 'NORMAL',
+    id: 'controls-test', status: 'active', currentStage: 'Fase de grupos', selectedFormation: 'DIAMOND_3_1', selectedStrategy: 'Equilibrado', selectedDifficulty: 'NORMAL', teamRerollsUsed: 0,
     playerIds: squad.map((player) => player.id), starterIds, losingStreak: 0, matches: [], groupPoints: 0, createdAt: now, updatedAt: now,
   }
   return { campaign, plan }

@@ -12,12 +12,13 @@ interface SubstitutionModalProps {
   coach?: GameCoach
   formationLabel?: string
   validationErrors?: string[]
+  showOverall: boolean
   onConfirm: (playerOutId: string, playerInId: string) => void
   onClose: () => void
   onSave?: () => void
 }
 
-export function SubstitutionModal({ mode, activePlayers, benchPlayers, coach, formationLabel, validationErrors = [], onConfirm, onClose, onSave }: SubstitutionModalProps) {
+export function SubstitutionModal({ mode, activePlayers, benchPlayers, coach, formationLabel, validationErrors = [], showOverall, onConfirm, onClose, onSave }: SubstitutionModalProps) {
   const [outId, setOutId] = useState<string | null>(null)
   const [lastSwap, setLastSwap] = useState<string | null>(null)
   const [swapCount, setSwapCount] = useState(0)
@@ -62,11 +63,11 @@ export function SubstitutionModal({ mode, activePlayers, benchPlayers, coach, fo
         <div className="substitution-columns">
           <section>
             <h3>{preMatch ? `TITULARES · ${active.length}/5` : 'SAI · EM QUADRA'}</h3>
-            {active.map((player) => <button className={outId === player.id ? 'selected' : ''} aria-pressed={outId === player.id} key={player.id} onClick={() => selectOutgoing(player.id)}><span>{player.position}</span><strong>{player.name}</strong><PlayerStamina player={player} /></button>)}
+            {active.map((player) => <button className={outId === player.id ? 'selected' : ''} aria-pressed={outId === player.id} key={player.id} onClick={() => selectOutgoing(player.id)}><span>{player.position}</span><strong>{player.name}</strong><PlayerStamina player={player} showOverall={showOverall} /></button>)}
           </section>
           <section>
             <h3>{outgoing ? `BANCO · OPÇÕES PARA ${outgoing.position}` : `BANCO · ${bench.length} RESERVAS`}</h3>
-            {compatibleBench.map((player) => <button key={player.id} onClick={() => confirmIncoming(player)}><span>{player.position}</span><strong>{player.name}</strong><PlayerStamina player={player} /></button>)}
+            {compatibleBench.map((player) => <button key={player.id} onClick={() => confirmIncoming(player)}><span>{player.position}</span><strong>{player.name}</strong><PlayerStamina player={player} showOverall={showOverall} /></button>)}
             {!outgoing && <div className="bench-placeholder">Selecione um titular para filtrar o banco.</div>}
             {outgoing && compatibleBench.length === 0 && <div className="bench-placeholder">Nenhum reserva compatível.</div>}
           </section>
@@ -76,7 +77,7 @@ export function SubstitutionModal({ mode, activePlayers, benchPlayers, coach, fo
 
         {preMatch && coach && (
           <aside className="coach-fixed coach-fixed--detailed">
-            <div><span>TÉCNICO · FORA DA QUADRA</span><strong>{coach.name}</strong><small>{coach.overall} / {coach.overallOriginal} OVR · boost ×{calculateCoachBoost(coach).toFixed(3)}</small></div>
+            <div><span>TÉCNICO · FORA DA QUADRA</span><strong>{coach.name}</strong><small>{showOverall ? `${coach.overall} / ${coach.overallOriginal} OVR · boost ×${calculateCoachBoost(coach).toFixed(3)}` : 'OVR oculto nesta dificuldade'}</small></div>
           </aside>
         )}
 

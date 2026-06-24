@@ -7,7 +7,8 @@ import { MatchSimulationScreen } from './components/MatchSimulationScreen'
 import { TacticsScreen } from './components/TacticsScreen'
 import { TournamentScreen } from './components/TournamentScreen'
 import { playerById } from './data/players'
-import { getDraftTeam, validateDraftPick } from './game/draft'
+import { canRerollTeam } from './game/balance'
+import { getAvailableDraftTeams, getDraftTeam, validateDraftPick } from './game/draft'
 import { createMatchSimulation } from './game/simulation'
 import { createDefaultLineup, validateStartingLineup } from './game/squad'
 import { applyMatch, opponentFor, stageFor } from './game/tournament'
@@ -24,11 +25,12 @@ export function App() {
   const completedMatches = useRef(new Set<string>())
 
   const squad = useMemo(() => campaign?.playerIds.map((id) => playerById.get(id)).filter((player): player is GamePlayer => Boolean(player)) ?? [], [campaign])
-  const draftTeam = useMemo(() => campaign?.selectedFormation ? getDraftTeam(campaign.id, squad, campaign.selectedFormation) : null, [campaign, squad])
+  const draftTeam = useMemo(() => campaign?.selectedFormation ? getDraftTeam(campaign.id, squad, campaign.selectedFormation, campaign.teamRerollsUsed) : null, [campaign, squad])
+  const hasAlternativeDraftTeam = useMemo(() => campaign?.selectedFormation ? getAvailableDraftTeams(campaign.id, squad, campaign.selectedFormation).length > 1 : false, [campaign, squad])
 
   function persist(next: GameCampaign) {
-    campaignRepository.save(next)
-    setCampaign(next)
+    const saved = campaignRepository.save(next)
+    setCampaign(saved)
     setCampaigns(campaignRepository.list())
   }
 
@@ -66,9 +68,14 @@ export function App() {
     })
   }
 
+  function redrawDraftTeam() {
+    if (!campaign?.selectedFormation || !hasAlternativeDraftTeam || !canRerollTeam(campaign.selectedDifficulty, campaign.teamRerollsUsed)) return
+    persist({ ...campaign, teamRerollsUsed: campaign.teamRerollsUsed + 1, updatedAt: new Date().toISOString() })
+  }
+
   function confirmTactics() {
     if (!campaign) return
-    persist({ ...campaign, selectedFormation: formation, selectedStrategy: strategy, selectedDifficulty: difficulty, status: 'draft', updatedAt: new Date().toISOString() })
+    persist({ ...campaign, selectedFormation: formation, selectedStrategy: strategy, selectedDifficulty: difficulty, teamRerollsUsed: 0, status: 'draft', updatedAt: new Date().toISOString() })
   }
 
   function saveLineup(starterIds: string[]) {
@@ -122,7 +129,7 @@ export function App() {
   } else if (campaign.status === 'tactics') {
     screen = <TacticsScreen formation={formation} difficulty={difficulty} onFormation={setFormation} onDifficulty={setDifficulty} onConfirm={confirmTactics} />
   } else if (campaign.status === 'draft') {
-    screen = <DraftScreen selected={squad} team={draftTeam} formation={campaign.selectedFormation!} onSelect={selectPlayer} />
+    screen = <DraftScreen selected={squad} team={draftTeam} formation={campaign.selectedFormation!} difficulty={campaign.selectedDifficulty} teamRerollsUsed={campaign.teamRerollsUsed} hasAlternativeTeam={hasAlternativeDraftTeam} onRedraw={redrawDraftTeam} onSelect={selectPlayer} />
   } else if (campaign.status === 'active') {
     const opponent = opponentFor(campaign)
     const bestPlayer = squad.filter((player) => player.position !== 'TECNICO').sort((a, b) => b.overall - a.overall)[0]

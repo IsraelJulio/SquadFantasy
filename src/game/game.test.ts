@@ -3,7 +3,7 @@ import { opponents } from '../data/opponents'
 import { players } from '../data/players'
 import type { Formation, GameAthlete, GameCampaign, GamePlayer } from '../types'
 import { calculateDifficultyBoost, calculateTacticalMatchup } from './balance'
-import { getDraftPlayerAvailability, getDraftTeam, getNextDraftPosition, validateDraftPick, validateSquadForFormation } from './draft'
+import { getAvailableDraftTeams, getDraftPlayerAvailability, getDraftTeam, getNextDraftPosition, validateDraftPick, validateSquadForFormation } from './draft'
 import { getRequiredSquadByFormation } from './formations'
 import { applySubstitution, calculateLiveMatchStrengths, createInitialMatchState, createMatchSimulation, finalizeMatch, simulateNextMinute } from './simulation'
 import { calculateActiveLineupStrength, calculateCoachBoost, calculateComebackBoost, calculateEffectiveOverall, coachFrom, createDefaultLineup, getCompatibleSubstitutes, updatePlayerStamina, validateStartingLineup } from './squad'
@@ -19,7 +19,7 @@ const starterIds = createDefaultLineup(squad, 'DIAMOND_3_1')
 
 function campaign(): GameCampaign {
   const now = new Date().toISOString()
-  return { id: 'test-campaign', status: 'active', currentStage: 'Fase de grupos', selectedFormation: 'DIAMOND_3_1', selectedStrategy: 'Equilibrado', selectedDifficulty: 'NORMAL', playerIds: squad.map((player) => player.id), starterIds, losingStreak: 0, matches: [], groupPoints: 0, createdAt: now, updatedAt: now }
+  return { id: 'test-campaign', status: 'active', currentStage: 'Fase de grupos', selectedFormation: 'DIAMOND_3_1', selectedStrategy: 'Equilibrado', selectedDifficulty: 'NORMAL', teamRerollsUsed: 0, playerIds: squad.map((player) => player.id), starterIds, losingStreak: 0, matches: [], groupPoints: 0, createdAt: now, updatedAt: now }
 }
 
 describe('dados simplificados', () => {
@@ -56,6 +56,14 @@ describe('draft por formação', () => {
     expect(getNextDraftPosition(athletes, 'DIAMOND_3_1')).toBe('TECNICO')
     const pivot = players.find((player) => player.position === 'PIVO')!
     expect(validateDraftPick(pivot, squadFor('SQUARE_2_2'), 'SQUARE_2_2')).toContain('não usa')
+  })
+
+  it('sorteia outra equipe elegível sem repetir a atual', () => {
+    const available = getAvailableDraftTeams('redraw-team', [], 'DIAMOND_3_1')
+    expect(available.length).toBeGreaterThan(1)
+    expect(getDraftTeam('redraw-team', [], 'DIAMOND_3_1', 0)?.id).toBe(available[0].id)
+    expect(getDraftTeam('redraw-team', [], 'DIAMOND_3_1', 1)?.id).toBe(available[1].id)
+    expect(available[0].id).not.toBe(available[1].id)
   })
 
   it('bloqueia duplicados, posições completas e posições não usadas', () => {

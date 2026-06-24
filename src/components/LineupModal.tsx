@@ -8,11 +8,12 @@ interface LineupModalProps {
   squad: GamePlayer[]
   formation: Formation
   initialStarterIds: string[]
+  showOverall: boolean
   onConfirm: (starterIds: string[]) => void
   onClose: () => void
 }
 
-export function LineupModal({ squad, formation, initialStarterIds, onConfirm, onClose }: LineupModalProps) {
+export function LineupModal({ squad, formation, initialStarterIds, showOverall, onConfirm, onClose }: LineupModalProps) {
   const [starterIds, setStarterIds] = useState(initialStarterIds)
   const athletes = squad.filter((player): player is GameAthlete => player.position !== 'TECNICO')
   const starters = athletes.filter((player) => starterIds.includes(player.id))
@@ -31,6 +32,7 @@ export function LineupModal({ squad, formation, initialStarterIds, onConfirm, on
       coach={coachFrom(squad)}
       formationLabel={formationTitle(formation)}
       validationErrors={errors}
+      showOverall={showOverall}
       onConfirm={swapPlayers}
       onClose={onClose}
       onSave={() => { onConfirm(starterIds); onClose() }}

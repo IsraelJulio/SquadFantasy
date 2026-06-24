@@ -5,6 +5,7 @@ import type { Difficulty, Formation, GamePlayer } from '../types'
 import { getRequiredSquadByFormation } from './formations'
 import { simulateMatch } from './simulation'
 import { createDefaultLineup } from './squad'
+import { canRerollTeam, getRemainingTeamRerolls, shouldShowPlayerOverall } from './balance'
 
 function representativeSquad(formation: Formation): GamePlayer[] {
   const required = getRequiredSquadByFormation(formation)
@@ -43,5 +44,28 @@ describe('balanceamento estatístico', () => {
 
   it('eleva a chance após derrotas sem alterar a dificuldade escolhida', () => {
     expect(victoryRate('NORMAL', 2)).toBeGreaterThan(victoryRate('NORMAL'))
+  })
+})
+
+describe('regras de dificuldade', () => {
+  it('controla quando uma equipe pode ser sorteada novamente', () => {
+    expect(canRerollTeam('CASUAL', 0)).toBe(true)
+    expect(canRerollTeam('CASUAL', 2)).toBe(true)
+    expect(canRerollTeam('CASUAL', 3)).toBe(false)
+    expect(canRerollTeam('NORMAL', 0)).toBe(true)
+    expect(canRerollTeam('NORMAL', 1)).toBe(false)
+    expect(canRerollTeam('CHALLENGE', 0)).toBe(false)
+  })
+
+  it('calcula os sorteios restantes sem valores negativos', () => {
+    expect([0, 1, 3].map((used) => getRemainingTeamRerolls('CASUAL', used))).toEqual([3, 2, 0])
+    expect([0, 1].map((used) => getRemainingTeamRerolls('NORMAL', used))).toEqual([1, 0])
+    expect([0, 2].map((used) => getRemainingTeamRerolls('CHALLENGE', used))).toEqual([0, 0])
+  })
+
+  it('exibe overall somente no Casual', () => {
+    expect(shouldShowPlayerOverall('CASUAL')).toBe(true)
+    expect(shouldShowPlayerOverall('NORMAL')).toBe(false)
+    expect(shouldShowPlayerOverall('CHALLENGE')).toBe(false)
   })
 })

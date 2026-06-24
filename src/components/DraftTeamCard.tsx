@@ -6,6 +6,7 @@ interface DraftTeamCardProps {
   team: DraftTeam
   selected: GamePlayer[]
   formation: Formation
+  showOverall: boolean
   onSelect: (player: GamePlayer) => void
 }
 
@@ -14,7 +15,7 @@ const flags: Record<string, string> = {
   'Países Baixos': '🇳🇱', Uruguai: '🇺🇾', França: '🇫🇷',
 }
 
-export function DraftTeamCard({ team, selected, formation, onSelect }: DraftTeamCardProps) {
+export function DraftTeamCard({ team, selected, formation, showOverall, onSelect }: DraftTeamCardProps) {
   const [highlightedId, setHighlightedId] = useState<string | null>(null)
   const [feedback, setFeedback] = useState('Duplo toque, duplo clique ou seta para escolher.')
   const lastTouchRef = useRef<{ playerId: string; time: number } | null>(null)
@@ -84,6 +85,7 @@ export function DraftTeamCard({ team, selected, formation, onSelect }: DraftTeam
               <span className="draft-player-row__initials" aria-hidden="true">{player.name.split(' ').map((part) => part[0]).join('').slice(0, 2)}</span>
               <span className="draft-player-row__name"><strong>{player.name}</strong><small>{availability.reason ?? 'Disponível para contratação'}</small></span>
               {alreadyPicked && <span className="draft-player-row__picked">Escolhido</span>}
+              {showOverall && !alreadyPicked && <span className="draft-player-row__overall">{player.overall} OVR</span>}
               <span className="draft-player-row__position">{player.position}</span>
             </button><button
               type="button"

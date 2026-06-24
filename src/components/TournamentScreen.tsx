@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { calculateTacticalMatchup } from '../game/balance'
+import { calculateTacticalMatchup, shouldShowPlayerOverall } from '../game/balance'
 import { formationTitle } from '../game/formations'
 import { validateStartingLineup } from '../game/squad'
 import type { GameCampaign, GamePlayer, Opponent, Strategy } from '../types'
@@ -24,6 +24,7 @@ export function TournamentScreen({ campaign, opponent, squad, bestPlayer, onPlay
   const groupMatches = campaign.matches.filter((match) => match.stage === 'Fase de grupos')
   const starters = squad.filter((player) => campaign.starterIds.includes(player.id))
   const bench = squad.filter((player) => player.position !== 'TECNICO' && !campaign.starterIds.includes(player.id))
+  const showOverall = shouldShowPlayerOverall(campaign.selectedDifficulty)
   const lineupErrors = campaign.selectedFormation ? validateStartingLineup(starters, bench, campaign.selectedFormation) : ['Formação não definida.']
 
   return (
@@ -36,7 +37,7 @@ export function TournamentScreen({ campaign, opponent, squad, bestPlayer, onPlay
         <div className="team-side"><div className="team-crest team-crest--opponent">{opponent.name.split(' ').map((part) => part[0]).join('').slice(0, 2)}</div><span>ADVERSÁRIO</span><h2>{opponent.name}</h2><small>{opponent.year} · {opponent.strategy}</small></div>
       </section>
       <section className="match-meta">
-        <article><span>DESTAQUE DO QUINTETO</span><strong>{bestPlayer.name}</strong><small>{bestPlayer.overall} OVR · {bestPlayer.position}</small></article>
+        <article><span>DESTAQUE DO QUINTETO</span><strong>{bestPlayer.name}</strong><small>{showOverall ? `${bestPlayer.overall} OVR · ` : ''}{bestPlayer.position}</small></article>
         <article><span>FORÇA DO ADVERSÁRIO</span><div className="level"><i><em style={{ width: `${opponent.level}%` }} /></i><strong>{opponent.level}</strong></div><small>{opponent.strategy}</small></article>
         {campaign.currentStage === 'Fase de grupos' && <article><span>CLASSIFICAÇÃO</span><strong>{campaign.groupPoints} pontos</strong><small>{groupMatches.length}/3 jogos · precisa de 4 pts</small></article>}
       </section>
@@ -54,7 +55,7 @@ export function TournamentScreen({ campaign, opponent, squad, bestPlayer, onPlay
         <button className="button button--ghost" onClick={() => setEditingLineup(true)}>Definir time titular</button>
         {lineupErrors.length > 0 && <small>{lineupErrors[0]}</small>}
       </div>
-      {editingLineup && campaign.selectedFormation && <LineupModal squad={squad} formation={campaign.selectedFormation} initialStarterIds={campaign.starterIds} onConfirm={onSaveLineup} onClose={() => setEditingLineup(false)} />}
+      {editingLineup && campaign.selectedFormation && <LineupModal squad={squad} formation={campaign.selectedFormation} initialStarterIds={campaign.starterIds} showOverall={showOverall} onConfirm={onSaveLineup} onClose={() => setEditingLineup(false)} />}
     </main>
   )
 }

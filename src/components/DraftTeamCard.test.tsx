@@ -8,7 +8,7 @@ describe('DraftTeamCard', () => {
     const onSelect = vi.fn()
     const team = draftTeams[0]
     const player = team.players[0]
-    render(<DraftTeamCard team={team} selected={[]} formation="DIAMOND_3_1" onSelect={onSelect} />)
+    render(<DraftTeamCard team={team} selected={[]} formation="DIAMOND_3_1" showOverall={false} onSelect={onSelect} />)
     const playerButton = screen.getByRole('button', { name: new RegExp(`^${player.name},`) })
 
     expect(playerButton).not.toHaveAccessibleName(/overall/i)
@@ -31,12 +31,22 @@ describe('DraftTeamCard', () => {
     const onSelect = vi.fn()
     const team = draftTeams[1]
     const player = team.players[0]
-    render(<DraftTeamCard team={team} selected={[]} formation="DIAMOND_3_1" onSelect={onSelect} />)
+    render(<DraftTeamCard team={team} selected={[]} formation="DIAMOND_3_1" showOverall={false} onSelect={onSelect} />)
     const playerButton = screen.getByRole('button', { name: new RegExp(`^${player.name},`) })
 
     fireEvent.pointerUp(playerButton, { pointerType: 'touch' })
     expect(onSelect).not.toHaveBeenCalled()
     fireEvent.pointerUp(playerButton, { pointerType: 'touch' })
     expect(onSelect).toHaveBeenCalledWith(player)
+  })
+
+  it('mostra o overall somente quando a dificuldade permite', () => {
+    const team = draftTeams[0]
+    const player = team.players[0]
+    const { rerender } = render(<DraftTeamCard team={team} selected={[]} formation="DIAMOND_3_1" showOverall onSelect={vi.fn()} />)
+    expect(screen.getByText(`${player.overall} OVR`)).toBeInTheDocument()
+
+    rerender(<DraftTeamCard team={team} selected={[]} formation="DIAMOND_3_1" showOverall={false} onSelect={vi.fn()} />)
+    expect(screen.queryByText(`${player.overall} OVR`)).not.toBeInTheDocument()
   })
 })
