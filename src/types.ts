@@ -7,7 +7,7 @@ export type Stage = 'Fase de grupos' | 'Oitavas' | 'Quartas' | 'Semifinal' | 'Fi
 export type CampaignStatus = 'tactics' | 'draft' | 'active' | 'champion' | 'eliminated'
 export type MatchResult = 'victory' | 'draw' | 'defeat'
 export type MatchSimulationStatus = 'not_started' | 'first_half' | 'half_time' | 'second_half' | 'paused' | 'awaiting_penalties' | 'penalties' | 'finished'
-export type MatchEventType = 'kick-off' | 'goal' | 'chance' | 'save' | 'foul' | 'substitution' | 'half-time' | 'second-half' | 'full-time'
+export type MatchEventType = 'kick-off' | 'goal' | 'chance' | 'save' | 'foul' | 'substitution' | 'fatigue' | 'half-time' | 'second-half' | 'full-time'
 export type MatchEventTeam = 'user' | 'opponent' | 'neutral'
 export type PenaltyTeam = 'user' | 'opponent'
 export type PenaltyShotResult = 'goal' | 'miss' | 'saved' | 'post'
@@ -62,6 +62,7 @@ interface PersonBase {
 export interface GameAthlete extends PersonBase {
   position: AthletePosition
   stamina: number
+  fatigueFactor?: number
 }
 
 export interface GameCoach extends PersonBase {
@@ -70,6 +71,15 @@ export interface GameCoach extends PersonBase {
 
 export type GamePlayer = GameAthlete | GameCoach
 
+export interface MatchPlayerState {
+  playerId: string
+  baseOverall: number
+  currentOverall: number
+  stamina: number
+  fatigueFactor: number
+  isOnCourt: boolean
+}
+
 export interface DraftTeam {
   id: string
   name: string
@@ -77,6 +87,7 @@ export interface DraftTeam {
   referenceYear?: number
   flagUrl?: string
   players: GamePlayer[]
+  rosterNotes?: string[]
 }
 
 export interface Opponent {
@@ -85,6 +96,45 @@ export interface Opponent {
   year: number
   level: number
   strategy: Strategy
+  players: GamePlayer[]
+  teamName?: string
+  flagUrl?: string
+}
+
+export interface GroupTeam {
+  id: string
+  name: string
+  isUserTeam: boolean
+  strength: number
+  formationKey?: Formation
+  strategy?: Strategy
+}
+
+export interface GroupStanding {
+  teamId: string
+  teamName: string
+  isUserTeam: boolean
+  played: number
+  wins: number
+  draws: number
+  losses: number
+  goalsFor: number
+  goalsAgainst: number
+  goalDifference: number
+  points: number
+}
+
+export interface GroupMatch {
+  id: string
+  round: 1 | 2 | 3
+  homeTeamId: string
+  awayTeamId: string
+  homeTeamName: string
+  awayTeamName: string
+  homeScore?: number
+  awayScore?: number
+  played: boolean
+  involvesUserTeam: boolean
 }
 
 export interface GameMatch {
@@ -128,6 +178,9 @@ export interface GameCampaign {
   selectedStrategy: Strategy | null
   selectedDifficulty: Difficulty
   teamRerollsUsed: number
+  currentGroupRound: 1 | 2 | 3
+  groupTeams: GroupTeam[]
+  groupMatches: GroupMatch[]
   playerIds: string[]
   starterIds: string[]
   losingStreak: number

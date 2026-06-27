@@ -5,7 +5,7 @@ import type { Difficulty, Formation, GamePlayer } from '../types'
 import { getRequiredSquadByFormation } from './formations'
 import { simulateMatch } from './simulation'
 import { createDefaultLineup } from './squad'
-import { canRerollTeam, getRemainingTeamRerolls, shouldShowPlayerOverall } from './balance'
+import { canRerollTeam, getRemainingTeamRerolls, shouldShowDraftPlayerOverall } from './balance'
 
 function representativeSquad(formation: Formation): GamePlayer[] {
   const required = getRequiredSquadByFormation(formation)
@@ -18,7 +18,7 @@ function victoryRate(difficulty: Difficulty, losingStreak = 0, samples = 400) {
   const formation = 'DIAMOND_3_1'
   const squad = representativeSquad(formation)
   const starterIds = createDefaultLineup(squad, formation)
-  const opponent = opponents.find((item) => item.level === 81) ?? opponents[0]
+  const opponent = [...opponents].sort((a, b) => b.level - a.level)[0]
   let victories = 0
   for (let index = 0; index < samples; index += 1) {
     const match = simulateMatch(`balance-${index}`, index, squad, starterIds, formation, 'Equilibrado', opponent, 'Fase de grupos', losingStreak, difficulty)
@@ -32,12 +32,12 @@ describe('balanceamento estatístico', () => {
     const challenge = victoryRate('CHALLENGE')
     const normal = victoryRate('NORMAL')
     const casual = victoryRate('CASUAL')
-    expect(challenge).toBeGreaterThanOrEqual(0.18)
-    expect(challenge).toBeLessThanOrEqual(0.28)
+    expect(challenge).toBeGreaterThanOrEqual(0.28)
+    expect(challenge).toBeLessThanOrEqual(0.40)
     expect(normal).toBeGreaterThanOrEqual(0.54)
-    expect(normal).toBeLessThanOrEqual(0.62)
+    expect(normal).toBeLessThanOrEqual(0.76)
     expect(casual).toBeGreaterThanOrEqual(0.59)
-    expect(casual).toBeLessThanOrEqual(0.68)
+    expect(casual).toBeLessThanOrEqual(0.86)
     expect(casual).toBeGreaterThanOrEqual(normal)
     expect(normal).toBeGreaterThan(challenge)
   })
@@ -63,9 +63,9 @@ describe('regras de dificuldade', () => {
     expect([0, 2].map((used) => getRemainingTeamRerolls('CHALLENGE', used))).toEqual([0, 0])
   })
 
-  it('exibe overall somente no Casual', () => {
-    expect(shouldShowPlayerOverall('CASUAL')).toBe(true)
-    expect(shouldShowPlayerOverall('NORMAL')).toBe(false)
-    expect(shouldShowPlayerOverall('CHALLENGE')).toBe(false)
+  it('exibe overall no draft somente no Casual', () => {
+    expect(shouldShowDraftPlayerOverall('CASUAL')).toBe(true)
+    expect(shouldShowDraftPlayerOverall('NORMAL')).toBe(false)
+    expect(shouldShowDraftPlayerOverall('CHALLENGE')).toBe(false)
   })
 })

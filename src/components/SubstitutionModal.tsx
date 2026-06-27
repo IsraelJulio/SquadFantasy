@@ -12,13 +12,12 @@ interface SubstitutionModalProps {
   coach?: GameCoach
   formationLabel?: string
   validationErrors?: string[]
-  showOverall: boolean
   onConfirm: (playerOutId: string, playerInId: string) => void
   onClose: () => void
   onSave?: () => void
 }
 
-export function SubstitutionModal({ mode, activePlayers, benchPlayers, coach, formationLabel, validationErrors = [], showOverall, onConfirm, onClose, onSave }: SubstitutionModalProps) {
+export function SubstitutionModal({ mode, activePlayers, benchPlayers, coach, formationLabel, validationErrors = [], onConfirm, onClose, onSave }: SubstitutionModalProps) {
   const [outId, setOutId] = useState<string | null>(null)
   const [lastSwap, setLastSwap] = useState<string | null>(null)
   const [swapCount, setSwapCount] = useState(0)
@@ -37,7 +36,7 @@ export function SubstitutionModal({ mode, activePlayers, benchPlayers, coach, fo
     if (!outgoing) return
     onConfirm(outgoing.id, incoming.id)
     setLastSwap(`Troca realizada: ${outgoing.name} saiu do time titular e ${incoming.name} entrou.`)
-    setSwapCount((current) => current + 1)
+    if (!preMatch) setSwapCount((current) => current + 1)
     setOutId(null)
   }
 
@@ -55,7 +54,7 @@ export function SubstitutionModal({ mode, activePlayers, benchPlayers, coach, fo
           <div>
             <span className="eyebrow">{preMatch ? formationLabel?.toUpperCase() : 'RELÓGIO PAUSADO'}</span>
             <h2 id="sub-title">{preMatch ? 'Definir time titular' : 'Fazer substituição'}</h2>
-            <p>{preMatch ? 'Monte seu time titular antes da partida. Clique em um jogador da quadra para ver no banco quais atletas podem entrar naquela posição. Depois, selecione o substituto desejado para trocar os jogadores. O técnico não entra em quadra, mas aplica bônus ao desempenho do time.' : 'Faça quantas trocas precisar enquanto o relógio está pausado. Titulares e banco são atualizados após cada substituição; quando terminar, use o botão abaixo para voltar ao jogo.'}</p>
+            <p>{preMatch ? 'Monte seu time titular antes da partida. Clique em um jogador da quadra para ver no banco quais atletas podem entrar naquela posição. Depois, selecione o substituto desejado para trocar os jogadores. O técnico não entra em quadra, mas aplica bônus ao desempenho do time.' : 'Escolha quem sai e quem entra. A substituição será registrada na linha do tempo e o relógio continua parado para você fazer outras trocas. Quando terminar, volte ao jogo pelo botão abaixo.'}</p>
           </div>
           <button className="modal-close" onClick={onClose} aria-label="Fechar">×</button>
         </header>
@@ -63,11 +62,11 @@ export function SubstitutionModal({ mode, activePlayers, benchPlayers, coach, fo
         <div className="substitution-columns">
           <section>
             <h3>{preMatch ? `TITULARES · ${active.length}/5` : 'SAI · EM QUADRA'}</h3>
-            {active.map((player) => <button className={outId === player.id ? 'selected' : ''} aria-pressed={outId === player.id} key={player.id} onClick={() => selectOutgoing(player.id)}><span>{player.position}</span><strong>{player.name}</strong><PlayerStamina player={player} showOverall={showOverall} /></button>)}
+            {active.map((player) => <button className={outId === player.id ? 'selected' : ''} aria-pressed={outId === player.id} key={player.id} onClick={() => selectOutgoing(player.id)}><span>{player.position}</span><strong>{player.name}</strong><PlayerStamina player={player} /></button>)}
           </section>
           <section>
             <h3>{outgoing ? `BANCO · OPÇÕES PARA ${outgoing.position}` : `BANCO · ${bench.length} RESERVAS`}</h3>
-            {compatibleBench.map((player) => <button key={player.id} onClick={() => confirmIncoming(player)}><span>{player.position}</span><strong>{player.name}</strong><PlayerStamina player={player} showOverall={showOverall} /></button>)}
+            {compatibleBench.map((player) => <button key={player.id} onClick={() => confirmIncoming(player)}><span>{player.position}</span><strong>{player.name}</strong><PlayerStamina player={player} /></button>)}
             {!outgoing && <div className="bench-placeholder">Selecione um titular para filtrar o banco.</div>}
             {outgoing && compatibleBench.length === 0 && <div className="bench-placeholder">Nenhum reserva compatível.</div>}
           </section>
@@ -77,7 +76,7 @@ export function SubstitutionModal({ mode, activePlayers, benchPlayers, coach, fo
 
         {preMatch && coach && (
           <aside className="coach-fixed coach-fixed--detailed">
-            <div><span>TÉCNICO · FORA DA QUADRA</span><strong>{coach.name}</strong><small>{showOverall ? `${coach.overall} / ${coach.overallOriginal} OVR · boost ×${calculateCoachBoost(coach).toFixed(3)}` : 'OVR oculto nesta dificuldade'}</small></div>
+            <div><span>TÉCNICO · FORA DA QUADRA</span><strong>{coach.name}</strong><small>{coach.overall} / {coach.overallOriginal} OVR · boost ×{calculateCoachBoost(coach).toFixed(3)}</small></div>
           </aside>
         )}
 

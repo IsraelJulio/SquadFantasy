@@ -1,5 +1,6 @@
 import { opponents } from '../data/opponents'
 import type { GameCampaign, Opponent, Stage } from '../types'
+import { finishGroupRound, getCurrentUserGroupMatch, USER_GROUP_TEAM_ID } from './groupStage'
 import { hashSeed, seededRandom, shuffled } from './random'
 
 const knockoutStages: Stage[] = ['Oitavas', 'Quartas', 'Semifinal', 'Final']
@@ -9,6 +10,12 @@ export function pointsFor(result: 'victory' | 'draw' | 'defeat') {
 }
 
 export function opponentFor(campaign: GameCampaign): Opponent {
+  if (campaign.currentStage === 'Fase de grupos') {
+    const groupMatch = getCurrentUserGroupMatch(campaign)
+    const opponentId = groupMatch?.homeTeamId === USER_GROUP_TEAM_ID ? groupMatch.awayTeamId : groupMatch?.homeTeamId
+    const groupOpponent = opponents.find((opponent) => opponent.id === opponentId)
+    if (groupOpponent) return groupOpponent
+  }
   const order = shuffled(opponents, seededRandom(hashSeed(campaign.id)))
   return order[campaign.matches.length % order.length]
 }
@@ -24,18 +31,19 @@ export function applyMatch(campaign: GameCampaign, match: GameCampaign['matches'
   let status = campaign.status
   let currentStage = campaign.currentStage
   let losingStreak = match.result === 'defeat' ? campaign.losingStreak + 1 : match.result === 'victory' ? 0 : Math.max(0, campaign.losingStreak - 1)
+  let nextCampaign = { ...campaign, matches, groupPoints, losingStreak, status, currentStage }
 
-  if (match.stage === 'Fase de grupos' && matches.length === 3) {
-    if (groupPoints < 4) status = 'eliminated'
-    else currentStage = 'Oitavas'
-  } else if (match.stage !== 'Fase de grupos') {
+  if (match.stage === 'Fase de grupos') {
+    nextCampaign = finishGroupRound(nextCampaign, { userScore: match.userScore, opponentScore: match.opponentScore })
+  } else {
     if (match.result === 'defeat') status = 'eliminated'
     else if (match.stage === 'Final') {
       status = 'champion'
       losingStreak = 0
     }
     else currentStage = knockoutStages[knockoutStages.indexOf(match.stage) + 1]
+    nextCampaign = { ...nextCampaign, status, currentStage, losingStreak }
   }
 
-  return { ...campaign, matches, groupPoints, losingStreak, status, currentStage, updatedAt: new Date().toISOString() }
+  return { ...nextCampaign, updatedAt: new Date().toISOString() }
 }

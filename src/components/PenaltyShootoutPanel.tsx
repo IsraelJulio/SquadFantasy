@@ -6,7 +6,6 @@ interface PenaltyShootoutPanelProps {
   regulationScore: { user: number; opponent: number }
   shootout: PenaltyShootoutState
   participants: PenaltyParticipants | null
-  showOverall: boolean
   onStart: () => void
   onShoot: () => void
   onSkip: () => void
@@ -17,7 +16,7 @@ const resultMeta: Record<PenaltyShotResult, { icon: string; label: string }> = {
   saved: { icon: '🧤', label: 'Defesa' }, post: { icon: '🥅', label: 'Trave' },
 }
 
-export function PenaltyShootoutPanel({ opponentName, regulationScore, shootout, participants, showOverall, onStart, onShoot, onSkip }: PenaltyShootoutPanelProps) {
+export function PenaltyShootoutPanel({ opponentName, regulationScore, shootout, participants, onStart, onShoot, onSkip }: PenaltyShootoutPanelProps) {
   const latestShot = shootout.shots.at(-1)
   const shotsFor = (team: 'user' | 'opponent') => shootout.shots.filter((shot) => shot.team === team)
   return (
@@ -27,7 +26,7 @@ export function PenaltyShootoutPanel({ opponentName, regulationScore, shootout, 
       {shootout.status === 'not_started' && <button className="button button--primary" onClick={onStart}>Iniciar pênaltis →</button>}
       {shootout.status === 'in_progress' && participants && <>
         <div className="penalty-round"><span>RODADA {shootout.currentRound}</span><strong>{shootout.currentTeam === 'user' ? 'Seu time cobra' : `${opponentName} cobra`}</strong></div>
-        <div className="penalty-duel"><article><small>COBRADOR</small><strong>{participants.taker.name}</strong><span>{showOverall ? `Overall ${participants.taker.overall} · ` : ''}Stamina {participants.taker.stamina}%</span></article><b>VS</b><article><small>GOLEIRO</small><strong>{participants.goalkeeper.name}</strong><span>{showOverall ? `Overall ${participants.goalkeeper.overall} · ` : ''}Stamina {participants.goalkeeper.stamina}%</span></article></div>
+        <div className="penalty-duel"><article><small>COBRADOR</small><strong>{participants.taker.name}</strong><span>Preparado para a cobrança</span></article><b>VS</b><article><small>GOLEIRO</small><strong>{participants.goalkeeper.name}</strong><span>Defende a meta</span></article></div>
         {latestShot && <div className={`penalty-result penalty-result--${latestShot.result}`}><span>{resultMeta[latestShot.result].icon}</span><p><strong>{resultMeta[latestShot.result].label}.</strong> {latestShot.description}</p></div>}
         <div className="penalty-actions"><button className="button button--primary" onClick={onShoot}>Cobrar pênalti</button><button className="button button--ghost" onClick={onSkip}>Pular disputa</button></div>
       </>}

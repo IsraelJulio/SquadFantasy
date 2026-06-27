@@ -1,5 +1,6 @@
-import type { Formation, GameAthlete, GameCoach, GamePlayer, Strategy } from '../types'
+import type { Formation, GameAthlete, GameCoach, GamePlayer, MatchPlayerState, Strategy } from '../types'
 import { ATHLETE_POSITIONS, FUTSAL_FORMATIONS } from './formations'
+import { calculateCurrentOverall, DEFAULT_FATIGUE_FACTOR, normalizeFatigueFactor, updateMatchPlayerStatesPerMinute } from './staminaRules'
 
 export interface SquadStrength {
   finalStrength: number
@@ -21,8 +22,6 @@ const strategyBoosts: Record<Strategy, number> = {
 }
 
 const average = (values: number[]) => values.reduce((sum, value) => sum + value, 0) / Math.max(values.length, 1)
-const clampStamina = (stamina: number) => Math.max(0, Math.min(100, stamina))
-
 export function athletesFrom(squad: GamePlayer[]): GameAthlete[] {
   return squad.filter((player): player is GameAthlete => player.position !== 'TECNICO')
 }
@@ -59,19 +58,16 @@ export function validateStartingLineup(starters: GamePlayer[], bench: GamePlayer
   return errors
 }
 
-export function calculateEffectiveOverall(player: Pick<GameAthlete, 'overallOriginal' | 'stamina'>): number {
-  const staminaFactor = clampStamina(player.stamina) / 100
-  const effectiveFactor = Math.max(0.5, 1 - (1 - staminaFactor) * 0.5)
-  return Math.min(player.overallOriginal, Math.round(player.overallOriginal * effectiveFactor))
+export function calculateEffectiveOverall(player: Pick<GameAthlete, 'overallOriginal' | 'stamina'> & Partial<Pick<GameAthlete, 'fatigueFactor'>>): number {
+  return calculateCurrentOverall(player.overallOriginal, player.stamina, player.fatigueFactor ?? DEFAULT_FATIGUE_FACTOR)
 }
 
-export function updatePlayerStamina(player: GameAthlete, isOnCourt: boolean): GameAthlete {
-  const stamina = clampStamina(player.stamina + (isOnCourt ? -2 : 4))
-  return { ...player, stamina, overall: calculateEffectiveOverall({ overallOriginal: player.overallOriginal, stamina }) }
+export function updatePlayerStamina(player: GameAthlete, isOnCourt: boolean, strategy: Strategy = 'Equilibrado', matchMinute = 0): GameAthlete {
+  return updateMatchPlayerStatesPerMinute([player], isOnCourt ? [player.id] : [], strategy, matchMinute)[0]
 }
 
-export function updateTeamStamina(players: GameAthlete[], activeIds: string[]): GameAthlete[] {
-  return players.map((player) => updatePlayerStamina(player, activeIds.includes(player.id)))
+export function updateTeamStamina(players: GameAthlete[], activeIds: string[], strategy: Strategy = 'Equilibrado', matchMinute = 0): GameAthlete[] {
+  return updateMatchPlayerStatesPerMinute(players, activeIds, strategy, matchMinute)
 }
 
 export function calculateCoachBoost(coach?: GameCoach): number {
@@ -103,6 +99,22 @@ export function calculateActiveLineupStrength(starters: GamePlayer[], coach: Gam
   const strategyBoost = calculateStrategyBoost(strategy)
   const finalStrength = playersAverage * coachBoost * formationBoost * strategyBoost * comebackBoost * tacticalMatchupBoost * experienceBoost
   return { finalStrength, playersAverage, coachBoost, formationBoost, strategyBoost, comebackBoost, tacticalMatchupBoost, experienceBoost }
+}
+
+export function calculateFutsalTeamStrength(starters: GamePlayer[], playerStates: MatchPlayerState[], coach: GameCoach | undefined, formation: Formation, strategy: Strategy): SquadStrength {
+  const statesByPlayerId = new Map(playerStates.map((state) => [state.playerId, state]))
+  const currentStarters = starters.map((player) => {
+    if (player.position === 'TECNICO') return player
+    const state = statesByPlayerId.get(player.id)
+    if (!state) return player
+    return {
+      ...player,
+      stamina: state.stamina,
+      fatigueFactor: normalizeFatigueFactor(state.fatigueFactor),
+      overall: state.currentOverall,
+    }
+  })
+  return calculateActiveLineupStrength(currentStarters, coach, formation, strategy)
 }
 
 export function calculateSquadStrength(squad: GamePlayer[], formation: Formation, strategy: Strategy, losingStreak = 0): SquadStrength {

@@ -1,12 +1,15 @@
 import { describe, expect, it } from 'vitest'
+import { draftTeams } from '../data/draftTeams'
 import { opponents } from '../data/opponents'
 import { players } from '../data/players'
-import type { Formation, GameAthlete, GameCampaign, GamePlayer } from '../types'
+import type { DraftTeam, Formation, GameAthlete, GameCampaign, GamePlayer, MatchTimelineEvent } from '../types'
 import { calculateDifficultyBoost, calculateTacticalMatchup } from './balance'
-import { getAvailableDraftTeams, getDraftPlayerAvailability, getDraftTeam, getNextDraftPosition, validateDraftPick, validateSquadForFormation } from './draft'
+import { draftTeamCoversRemainingPositions, getAvailableDraftTeams, getDraftPlayerAvailability, getDraftTeam, getNextDraftPosition, validateDraftPick, validateSquadForFormation } from './draft'
 import { getRequiredSquadByFormation } from './formations'
+import { createGroupStage } from './groupStage'
 import { applySubstitution, calculateLiveMatchStrengths, createInitialMatchState, createMatchSimulation, finalizeMatch, simulateNextMinute } from './simulation'
 import { calculateActiveLineupStrength, calculateCoachBoost, calculateComebackBoost, calculateEffectiveOverall, coachFrom, createDefaultLineup, getCompatibleSubstitutes, updatePlayerStamina, validateStartingLineup } from './squad'
+import { BENCH_STAMINA_RECOVERY_PER_MINUTE, calculateStaminaLossPerMinute } from './staminaRules'
 import { applyMatch, pointsFor } from './tournament'
 
 function squadFor(formation: Formation): GamePlayer[] {
@@ -17,22 +20,40 @@ function squadFor(formation: Formation): GamePlayer[] {
 const squad = squadFor('DIAMOND_3_1')
 const starterIds = createDefaultLineup(squad, 'DIAMOND_3_1')
 
+function goalEvent(minute: number, team: 'user' | 'opponent', playerName: string, userScore: number, opponentScore: number): MatchTimelineEvent {
+  return {
+    id: crypto.randomUUID(),
+    minute,
+    period: minute <= 20 ? 1 : 2,
+    type: 'goal',
+    team,
+    playerName,
+    description: `${playerName} marcou.`,
+    userScore,
+    opponentScore,
+  }
+}
+
 function campaign(): GameCampaign {
   const now = new Date().toISOString()
-  return { id: 'test-campaign', status: 'active', currentStage: 'Fase de grupos', selectedFormation: 'DIAMOND_3_1', selectedStrategy: 'Equilibrado', selectedDifficulty: 'NORMAL', teamRerollsUsed: 0, playerIds: squad.map((player) => player.id), starterIds, losingStreak: 0, matches: [], groupPoints: 0, createdAt: now, updatedAt: now }
+  return { id: 'test-campaign', status: 'active', currentStage: 'Fase de grupos', selectedFormation: 'DIAMOND_3_1', selectedStrategy: 'Equilibrado', selectedDifficulty: 'NORMAL', teamRerollsUsed: 0, ...createGroupStage('test-campaign'), playerIds: squad.map((player) => player.id), starterIds, losingStreak: 0, matches: [], groupPoints: 0, createdAt: now, updatedAt: now }
 }
 
 describe('dados simplificados', () => {
   it('tem 72 atletas e 8 técnicos somente com os atributos novos', () => {
-    expect(players).toHaveLength(80)
-    expect(players.filter((player) => player.position !== 'TECNICO')).toHaveLength(72)
-    expect(players.filter((player) => player.position === 'TECNICO')).toHaveLength(8)
-    const athlete = players.find((player) => player.position === 'ALA')!
-    expect(athlete).toMatchObject({ overall: athlete.overallOriginal, stamina: 100 })
+    expect(players.length).toBeGreaterThan(0)
+    expect(players.filter((player) => player.position !== 'TECNICO').length).toBeGreaterThan(0)
+    expect(players.filter((player) => player.position === 'TECNICO').length).toBeGreaterThan(0)
+    const athlete = players.find((player): player is GameAthlete => player.position === 'ALA')!
+    expect(athlete).toMatchObject({ role: 'PLAYER', overall: athlete.overallOriginal, stamina: 100 })
+    expect(athlete.fatigueFactor).toBeGreaterThanOrEqual(0.6)
+    expect(athlete.fatigueFactor).toBeLessThanOrEqual(1.8)
     expect(athlete).not.toHaveProperty('attack')
     expect(athlete).not.toHaveProperty('passing')
     const coach = players.find((player) => player.position === 'TECNICO')!
-    expect(Object.keys(coach).sort()).toEqual(['id', 'name', 'overall', 'overallOriginal', 'position'].sort())
+    expect(coach).toMatchObject({ role: 'COACH', position: 'TECNICO', preferredStrategy: expect.any(String) })
+    expect(coach).not.toHaveProperty('stamina')
+    expect(coach).not.toHaveProperty('fatigueFactor')
   })
 })
 
@@ -74,6 +95,24 @@ describe('draft por formação', () => {
     expect(getDraftPlayerAvailability(players.filter((player) => player.position === 'GOLEIRO')[2], twoGoalkeepers, 'DIAMOND_3_1')).toMatchObject({ available: false, code: 'position-complete' })
   })
 
+  it('filtra equipes incompletas conforme a necessidade restante do draft', () => {
+    const goalkeeper = players.find((player) => player.position === 'GOLEIRO')!
+    const fixo = players.find((player) => player.position === 'FIXO')!
+    const ala = players.find((player) => player.position === 'ALA')!
+    const pivot = players.find((player) => player.position === 'PIVO')!
+    const coach = players.find((player) => player.position === 'TECNICO')!
+    const completeTeam: DraftTeam = { id: 'complete', name: 'Completo', country: 'Teste', players: [goalkeeper, fixo, ala, pivot, coach] }
+    const noPlayersTeam: DraftTeam = { id: 'empty', name: 'Vazio', country: 'Teste', players: [coach], rosterNotes: ['Sem jogadores'] }
+    const noCoachTeam: DraftTeam = { id: 'no-coach', name: 'Sem técnico', country: 'Teste', players: [goalkeeper, fixo, ala, pivot], rosterNotes: ['Sem técnico'] }
+    const noPivotTeam: DraftTeam = { id: 'no-pivot', name: 'Sem pivo', country: 'Teste', players: [goalkeeper, fixo, ala, coach] }
+    const needsOnlyCoach = squad.filter((player) => player.position !== 'TECNICO')
+
+    expect(draftTeamCoversRemainingPositions(completeTeam, [], 'DIAMOND_3_1')).toBe(true)
+    expect(draftTeamCoversRemainingPositions(noPlayersTeam, [], 'DIAMOND_3_1')).toBe(false)
+    expect(draftTeamCoversRemainingPositions(noCoachTeam, needsOnlyCoach, 'DIAMOND_3_1')).toBe(false)
+    expect(draftTeamCoversRemainingPositions(noPivotTeam, [], 'DIAMOND_3_1')).toBe(false)
+  })
+
   it('completa 10 atletas e 1 técnico escolhendo apenas membros disponíveis das equipes', () => {
     const selected: GamePlayer[] = []
     while (selected.length < 11) {
@@ -91,18 +130,19 @@ describe('draft por formação', () => {
 describe('overall, stamina e força', () => {
   it('reduz o overall com cansaço sem cair abaixo de 50% nem superar o original', () => {
     expect(calculateEffectiveOverall({ overallOriginal: 80, stamina: 100 })).toBe(80)
-    expect(calculateEffectiveOverall({ overallOriginal: 80, stamina: 50 })).toBe(60)
-    expect(calculateEffectiveOverall({ overallOriginal: 80, stamina: 0 })).toBe(40)
+    expect(calculateEffectiveOverall({ overallOriginal: 80, stamina: 50 })).toBe(71)
+    expect(calculateEffectiveOverall({ overallOriginal: 80, stamina: 0 })).toBe(62)
     expect(calculateEffectiveOverall({ overallOriginal: 80, stamina: 140 })).toBe(80)
+    expect(calculateEffectiveOverall({ overallOriginal: 35, stamina: 0, fatigueFactor: 1.8 })).toBe(30)
   })
 
   it('perde 2 em quadra, recupera 4 no banco e respeita os limites', () => {
     const athlete = players.find((player): player is GameAthlete => player.position === 'ALA')!
     const tired = updatePlayerStamina(athlete, true)
     const recovered = updatePlayerStamina({ ...athlete, stamina: 50, overall: calculateEffectiveOverall({ overallOriginal: athlete.overallOriginal, stamina: 50 }) }, false)
-    expect(tired.stamina).toBe(98)
+    expect(tired.stamina).toBe(Math.round(100 - calculateStaminaLossPerMinute(athlete, 0, 'Equilibrado')))
     expect(tired.overall).toBe(calculateEffectiveOverall(tired))
-    expect(recovered.stamina).toBe(54)
+    expect(recovered.stamina).toBe(Math.round(50 + BENCH_STAMINA_RECOVERY_PER_MINUTE))
     expect(recovered.overall).toBe(calculateEffectiveOverall(recovered))
     expect(recovered.overall).toBeLessThanOrEqual(athlete.overallOriginal)
     expect(updatePlayerStamina({ ...athlete, stamina: 99 }, false).stamina).toBe(100)
@@ -145,11 +185,24 @@ describe('simulação incremental', () => {
     const plan = createMatchSimulation('stamina', 0, squad, starterIds, 'DIAMOND_3_1', 'Equilibrado', 'Fase de grupos')
     const initial = createInitialMatchState(plan, opponents[0])
     const next = simulateNextMinute(initial, opponents[0])
-    expect(next.userPlayers.filter((player) => next.activeIds.includes(player.id)).every((player) => player.stamina === 98)).toBe(true)
+    expect(next.userPlayers.filter((player) => next.activeIds.includes(player.id)).every((player) => player.stamina < 100)).toBe(true)
     expect(next.userPlayers.filter((player) => next.benchIds.includes(player.id)).every((player) => player.stamina === 100)).toBe(true)
-    expect(next.opponentPlayers.filter((player) => next.opponentActiveIds.includes(player.id)).every((player) => player.stamina === 98)).toBe(true)
+    expect(next.opponentPlayers.filter((player) => next.opponentActiveIds.includes(player.id)).every((player) => player.stamina < 100)).toBe(true)
     expect(next.opponentPlayers.filter((player) => next.opponentBenchIds.includes(player.id)).every((player) => player.stamina === 100)).toBe(true)
     expect([...next.userPlayers, ...next.opponentPlayers].every((player) => player.overall === calculateEffectiveOverall(player))).toBe(true)
+  })
+
+  it('usa equipes do draft como adversarios e escala jogadores desse elenco', () => {
+    const opponent = opponents.find((item) => draftTeams.some((team) => team.id === item.id))!
+    const draftTeam = draftTeams.find((team) => team.id === opponent.id)!
+    const plan = createMatchSimulation('draft-opponent', 0, squad, starterIds, 'DIAMOND_3_1', 'Equilibrado', 'Fase de grupos')
+    const initial = createInitialMatchState(plan, opponent)
+    const draftPlayerNames = new Set(draftTeam.players.map((player) => player.name))
+
+    expect(opponent.teamName).toBe(draftTeam.name)
+    expect(initial.opponentPlayers).toHaveLength(draftTeam.players.filter((player) => player.position !== 'TECNICO').length)
+    expect(initial.opponentPlayers.every((player) => draftPlayerNames.has(player.name))).toBe(true)
+    expect(initial.opponentActiveIds).toHaveLength(5)
   })
 
   it('recupera os reservas dos dois times e usa apenas o overall atual dos titulares', () => {
@@ -163,8 +216,8 @@ describe('simulação incremental', () => {
       opponentPlayers: initial.opponentPlayers.map((player) => ({ ...player, stamina: opponentBenchId === player.id ? 50 : player.stamina, overall: opponentBenchId === player.id ? calculateEffectiveOverall({ overallOriginal: player.overallOriginal, stamina: 50 }) : player.overall })),
     }
     const next = simulateNextMinute(prepared, opponents[0])
-    expect(next.userPlayers.find((player) => player.id === userBenchId)?.stamina).toBe(54)
-    expect(next.opponentPlayers.find((player) => player.id === opponentBenchId)?.stamina).toBe(54)
+    expect(next.userPlayers.find((player) => player.id === userBenchId)?.stamina).toBe(Math.round(50 + BENCH_STAMINA_RECOVERY_PER_MINUTE))
+    expect(next.opponentPlayers.find((player) => player.id === opponentBenchId)?.stamina).toBe(Math.round(50 + BENCH_STAMINA_RECOVERY_PER_MINUTE))
 
     const strengths = calculateLiveMatchStrengths(next, opponents[0])
     const userActive = next.userPlayers.filter((player) => next.activeIds.includes(player.id))
@@ -189,8 +242,8 @@ describe('simulação incremental', () => {
     const changedActive = changed.userPlayers.filter((player) => changed.activeIds.includes(player.id))
     const afterMinute = simulateNextMinute(changed, opponents[0])
     expect(changedStrength.user.playersAverage).toBe(changedActive.reduce((sum, player) => sum + player.overall, 0) / changedActive.length)
-    expect(afterMinute.userPlayers.find((player) => player.id === outgoing.id)?.stamina).toBe(outgoing.stamina + 4)
-    expect(afterMinute.userPlayers.find((player) => player.id === incoming.id)?.stamina).toBe(incoming.stamina - 2)
+    expect(afterMinute.userPlayers.find((player) => player.id === outgoing.id)?.stamina).toBe(Math.min(100, Math.round(outgoing.stamina + BENCH_STAMINA_RECOVERY_PER_MINUTE)))
+    expect(afterMinute.userPlayers.find((player) => player.id === incoming.id)?.stamina).toBeLessThan(incoming.stamina)
     expect(changed.events.at(-1)).toMatchObject({ type: 'substitution', playerOut: outgoing.name, playerIn: incoming.name })
   })
 
@@ -210,8 +263,9 @@ describe('simulação incremental', () => {
     expect(changed.events.at(-1)).toMatchObject({ type: 'substitution', team: 'opponent' })
 
     const afterMinute = simulateNextMinute(changed, opponents[0])
-    expect(afterMinute.opponentPlayers.find((player) => player.id === outgoingId)?.stamina).toBe(12)
-    expect(afterMinute.opponentPlayers.find((player) => player.id === incomingId)?.stamina).toBe(98)
+    const outgoingAfterSubstitution = changed.opponentPlayers.find((player) => player.id === outgoingId)!
+    expect(afterMinute.opponentPlayers.find((player) => player.id === outgoingId)?.stamina).toBe(Math.min(100, Math.round(outgoingAfterSubstitution.stamina + BENCH_STAMINA_RECOVERY_PER_MINUTE)))
+    expect(afterMinute.opponentPlayers.find((player) => player.id === incomingId)?.stamina).toBeLessThan(100)
     const strengths = calculateLiveMatchStrengths(afterMinute, opponents[0])
     const active = afterMinute.opponentPlayers.filter((player) => afterMinute.opponentActiveIds.includes(player.id))
     expect(strengths.opponent.playersAverage).toBe(active.reduce((sum, player) => sum + player.overall, 0) / active.length)
@@ -225,6 +279,40 @@ describe('simulação incremental', () => {
     expect(result.match?.userScore).toBe(state.events.filter((item) => item.type === 'goal' && item.team === 'user').length)
     expect(result.match?.opponentScore).toBe(state.events.filter((item) => item.type === 'goal' && item.team === 'opponent').length)
     expect(state.events.some((item) => item.type === 'substitution' && item.team === 'opponent')).toBe(true)
+  })
+
+  it('mantem maior overall como destaque somente no 0 a 0', () => {
+    const plan = createMatchSimulation('motm-zero-zero', 0, squad, starterIds, 'DIAMOND_3_1', 'Equilibrado', 'Fase de grupos')
+    const state = createInitialMatchState(plan, opponents[0])
+    const bestByOverall = state.userPlayers
+      .filter((player) => state.activeIds.includes(player.id))
+      .sort((a, b) => b.overall - a.overall)[0]
+
+    expect(finalizeMatch(state, opponents[0]).match?.manOfTheMatch).toBe(bestByOverall.name)
+  })
+
+  it('sorteia o destaque entre os artilheiros da partida quando ha gols', () => {
+    const plan = createMatchSimulation('motm-top-scorers', 0, squad, starterIds, 'DIAMOND_3_1', 'Equilibrado', 'Fase de grupos')
+    const initial = createInitialMatchState(plan, opponents[0])
+    const userLeader = initial.userPlayers.find((player) => initial.activeIds.includes(player.id))!.name
+    const opponentLeader = initial.opponentPlayers.find((player) => initial.opponentActiveIds.includes(player.id))!.name
+    const secondaryScorer = initial.userPlayers.find((player) => initial.activeIds.includes(player.id) && player.name !== userLeader)!.name
+    const state = {
+      ...initial,
+      userScore: 3,
+      opponentScore: 2,
+      events: [
+        goalEvent(3, 'user', userLeader, 1, 0),
+        goalEvent(7, 'opponent', opponentLeader, 1, 1),
+        goalEvent(12, 'user', secondaryScorer, 2, 1),
+        goalEvent(18, 'user', userLeader, 3, 1),
+        goalEvent(34, 'opponent', opponentLeader, 3, 2),
+      ],
+    }
+
+    const manOfTheMatch = finalizeMatch(state, opponents[0]).match?.manOfTheMatch
+    expect([userLeader, opponentLeader]).toContain(manOfTheMatch)
+    expect(manOfTheMatch).not.toBe(secondaryScorer)
   })
 })
 

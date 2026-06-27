@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { draftTeams } from '../data/draftTeams'
+import type { DraftTeam, GamePlayer } from '../types'
 import { DraftTeamCard } from './DraftTeamCard'
 
 describe('DraftTeamCard', () => {
@@ -44,9 +45,38 @@ describe('DraftTeamCard', () => {
     const team = draftTeams[0]
     const player = team.players[0]
     const { rerender } = render(<DraftTeamCard team={team} selected={[]} formation="DIAMOND_3_1" showOverall onSelect={vi.fn()} />)
-    expect(screen.getByText(`${player.overall} OVR`)).toBeInTheDocument()
+    expect(screen.getAllByText(`${player.overall} OVR`).length).toBeGreaterThan(0)
 
     rerender(<DraftTeamCard team={team} selected={[]} formation="DIAMOND_3_1" showOverall={false} onSelect={vi.fn()} />)
     expect(screen.queryByText(`${player.overall} OVR`)).not.toBeInTheDocument()
+  })
+
+  it('ordena os jogadores por posicao durante o draft', () => {
+    const makePlayer = (id: string, name: string, position: GamePlayer['position']): GamePlayer => {
+      if (position === 'TECNICO') return { id, name, position: 'TECNICO', overall: 80, overallOriginal: 80 }
+      return { id, name, position, overall: 80, overallOriginal: 80, stamina: 100 }
+    }
+    const team: DraftTeam = {
+      id: 'unordered-team',
+      name: 'Time fora de ordem',
+      country: 'Brasil',
+      players: [
+        makePlayer('pivo', 'Pivo Teste', 'PIVO'),
+        makePlayer('coach', 'Tecnico Teste', 'TECNICO'),
+        makePlayer('ala', 'Ala Teste', 'ALA'),
+        makePlayer('goleiro', 'Goleiro Teste', 'GOLEIRO'),
+        makePlayer('fixo', 'Fixo Teste', 'FIXO'),
+      ],
+    }
+
+    render(<DraftTeamCard team={team} selected={[]} formation="DIAMOND_3_1" showOverall={false} onSelect={vi.fn()} />)
+
+    expect(screen.getAllByRole('button', { name: /Teste, / }).map((button) => button.getAttribute('aria-label'))).toEqual([
+      'Goleiro Teste, GOLEIRO',
+      'Fixo Teste, FIXO',
+      'Ala Teste, ALA',
+      'Pivo Teste, PIVO',
+      'Tecnico Teste, TECNICO',
+    ])
   })
 })

@@ -1,19 +1,26 @@
 import type { GameCampaign } from '../types'
 import { DIFFICULTY_SETTINGS } from '../game/balance'
+import { createGroupStage } from '../game/groupStage'
 
 const STORAGE_KEY = 'esquadrao-imortal:futsal-campaigns:v2'
 
-type StoredCampaign = Omit<GameCampaign, 'losingStreak' | 'selectedDifficulty' | 'teamRerollsUsed'> & {
+type StoredCampaign = Omit<GameCampaign, 'losingStreak' | 'selectedDifficulty' | 'teamRerollsUsed' | 'currentGroupRound' | 'groupTeams' | 'groupMatches'> & {
   losingStreak?: number
   selectedDifficulty?: GameCampaign['selectedDifficulty']
   teamRerollsUsed?: number
+  currentGroupRound?: GameCampaign['currentGroupRound']
+  groupTeams?: GameCampaign['groupTeams']
+  groupMatches?: GameCampaign['groupMatches']
 }
 
 function normalizeCampaign(campaign: StoredCampaign): GameCampaign {
   const selectedDifficulty = campaign.selectedDifficulty ?? 'NORMAL'
   const maximumRerolls = DIFFICULTY_SETTINGS[selectedDifficulty].maxTeamRerolls
   const teamRerollsUsed = Math.min(maximumRerolls, Math.max(0, Math.floor(campaign.teamRerollsUsed ?? 0)))
-  return { ...campaign, losingStreak: campaign.losingStreak ?? 0, selectedDifficulty, teamRerollsUsed }
+  const group = campaign.groupTeams?.length === 4 && campaign.groupMatches?.length === 6
+    ? { currentGroupRound: campaign.currentGroupRound ?? 1, groupTeams: campaign.groupTeams, groupMatches: campaign.groupMatches }
+    : createGroupStage(campaign.id)
+  return { ...campaign, ...group, losingStreak: campaign.losingStreak ?? 0, selectedDifficulty, teamRerollsUsed }
 }
 
 function readAll(): GameCampaign[] {
@@ -38,14 +45,16 @@ export const campaignRepository = {
   },
   create(): GameCampaign {
     const now = new Date().toISOString()
+    const id = crypto.randomUUID()
     return this.save({
-      id: crypto.randomUUID(),
+      id,
       status: 'tactics',
       currentStage: 'Fase de grupos',
       selectedFormation: null,
       selectedStrategy: null,
       selectedDifficulty: 'NORMAL',
       teamRerollsUsed: 0,
+      ...createGroupStage(id),
       playerIds: [],
       starterIds: [],
       losingStreak: 0,

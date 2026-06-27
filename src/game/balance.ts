@@ -5,7 +5,7 @@ export interface DifficultySettings {
   label: string;
   description: string;
   maxTeamRerolls: number;
-  showPlayerOverall: boolean;
+  showDraftPlayerOverall: boolean;
   userStrengthBoost: number;
   underdogTargetRatio: number;
   maximumStrengthBoost: number;
@@ -16,8 +16,8 @@ export const DIFFICULTY_SETTINGS: Record<Difficulty, DifficultySettings> = {
     difficulty: "CASUAL",
     label: "Casual",
     maxTeamRerolls: 3,
-    showPlayerOverall: true,
-    description: "Mostra overall dos jogadores e permite sortear nova equipe até 3 vezes.",
+    showDraftPlayerOverall: true,
+    description: "Mostra overall no draft e permite sortear nova equipe até 3 vezes.",
     userStrengthBoost: 1.08,
     underdogTargetRatio: 1.22,
     maximumStrengthBoost: 1.45,
@@ -26,8 +26,8 @@ export const DIFFICULTY_SETTINGS: Record<Difficulty, DifficultySettings> = {
     difficulty: "NORMAL",
     label: "Normal",
     maxTeamRerolls: 1,
-    showPlayerOverall: false,
-    description: "Oculta overall dos jogadores e permite sortear nova equipe 1 vez.",
+    showDraftPlayerOverall: false,
+    description: "Oculta overall no draft e permite sortear nova equipe 1 vez.",
     userStrengthBoost: 1.05,
     underdogTargetRatio: 1.15,
     maximumStrengthBoost: 1.4,
@@ -36,8 +36,8 @@ export const DIFFICULTY_SETTINGS: Record<Difficulty, DifficultySettings> = {
     difficulty: "CHALLENGE",
     label: "Desafio",
     maxTeamRerolls: 0,
-    showPlayerOverall: false,
-    description: "Oculta overall dos jogadores e não permite sortear nova equipe.",
+    showDraftPlayerOverall: false,
+    description: "Oculta overall no draft e não permite sortear nova equipe.",
     userStrengthBoost: 1,
     underdogTargetRatio: 1,
     maximumStrengthBoost: 1,
@@ -52,8 +52,8 @@ export function getRemainingTeamRerolls(difficulty: Difficulty, teamRerollsUsed:
   return Math.max(0, DIFFICULTY_SETTINGS[difficulty].maxTeamRerolls - teamRerollsUsed);
 }
 
-export function shouldShowPlayerOverall(difficulty: Difficulty): boolean {
-  return DIFFICULTY_SETTINGS[difficulty].showPlayerOverall;
+export function shouldShowDraftPlayerOverall(difficulty: Difficulty): boolean {
+  return DIFFICULTY_SETTINGS[difficulty].showDraftPlayerOverall;
 }
 
 interface TacticalAdvantage {

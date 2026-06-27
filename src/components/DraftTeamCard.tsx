@@ -1,6 +1,6 @@
-import { useRef, useState, type KeyboardEvent, type PointerEvent } from 'react'
+import { useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react'
 import { getDraftPlayerAvailability } from '../game/draft'
-import type { DraftTeam, Formation, GamePlayer } from '../types'
+import type { DraftTeam, Formation, FutsalPosition, GamePlayer } from '../types'
 
 interface DraftTeamCardProps {
   team: DraftTeam
@@ -10,15 +10,29 @@ interface DraftTeamCardProps {
   onSelect: (player: GamePlayer) => void
 }
 
-const flags: Record<string, string> = {
-  Brasil: '🇧🇷', Argentina: '🇦🇷', Espanha: '🇪🇸', Itália: '🇮🇹', Portugal: '🇵🇹',
-  'Países Baixos': '🇳🇱', Uruguai: '🇺🇾', França: '🇫🇷',
+function TeamFlag({ flagUrl, name }: { flagUrl?: string; name: string }) {
+  if (flagUrl?.startsWith('https://')) {
+    return <img className="draft-team-flag" src={flagUrl} alt={name} aria-hidden="true" />
+  }
+  return <span className="draft-team-flag" aria-hidden="true">⚽</span>
+}
+
+const draftPositionOrder: Record<FutsalPosition, number> = {
+  GOLEIRO: 0,
+  FIXO: 1,
+  ALA: 2,
+  PIVO: 3,
+  TECNICO: 4,
 }
 
 export function DraftTeamCard({ team, selected, formation, showOverall, onSelect }: DraftTeamCardProps) {
   const [highlightedId, setHighlightedId] = useState<string | null>(null)
   const [feedback, setFeedback] = useState('Duplo toque, duplo clique ou seta para escolher.')
   const lastTouchRef = useRef<{ playerId: string; time: number } | null>(null)
+  const sortedPlayers = useMemo(
+    () => [...team.players].sort((a, b) => draftPositionOrder[a.position] - draftPositionOrder[b.position]),
+    [team.players],
+  )
 
   function handleClick(player: GamePlayer) {
     const availability = getDraftPlayerAvailability(player, selected, formation)
@@ -58,12 +72,12 @@ export function DraftTeamCard({ team, selected, formation, showOverall, onSelect
   return (
     <section className="draft-team-card" aria-labelledby="draft-team-name">
       <header className="draft-team-header">
-        <span className="draft-team-flag" aria-hidden="true">{flags[team.country] ?? '⚽'}</span>
-        <div><h2 id="draft-team-name">{team.name}</h2><p>{team.country}{team.referenceYear ? ` · Edição ${team.referenceYear}` : ''}</p></div>
+        <TeamFlag flagUrl={team.flagUrl} name={team.name} />
+        <div><h2 id="draft-team-name">{team.name}</h2><p>{team.country}{team.referenceYear ? ` · Edição ${team.referenceYear}` : ''}</p>{team.rosterNotes && team.rosterNotes.length > 0 && <small>{team.rosterNotes.join(' · ')}</small>}</div>
       </header>
       <div className="draft-list-heading"><strong>Escolha um jogador</strong><span>Duplo toque, duplo clique ou seta</span></div>
       <ul className="draft-player-list" aria-label={`Jogadores do ${team.name}`}>
-        {team.players.map((player) => {
+        {sortedPlayers.map((player) => {
           const availability = getDraftPlayerAvailability(player, selected, formation)
           const alreadyPicked = availability.code === 'already-picked'
           const highlighted = highlightedId === player.id

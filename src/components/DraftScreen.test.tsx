@@ -12,7 +12,11 @@ describe('DraftScreen', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Sortear nova equipe \(3 restantes\)/ }))
     expect(onRedraw).toHaveBeenCalledOnce()
-    expect(screen.getByText(`${draftTeams[0].players[0].overall} OVR`)).toBeInTheDocument()
+    expect(screen.getAllByText(`${draftTeams[0].players[0].overall} OVR`).length).toBeGreaterThan(0)
+    expect(screen.queryByText(/Escolha um atleta ou técnico desta equipe/)).not.toBeInTheDocument()
+    expect(screen.queryByText('Necessidades do elenco')).not.toBeInTheDocument()
+    expect(screen.queryByText(/^Atletas$/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/^Total$/)).not.toBeInTheDocument()
     rerender(<DraftScreen selected={[]} team={draftTeams[1]} formation="DIAMOND_3_1" difficulty="CASUAL" teamRerollsUsed={1} hasAlternativeTeam onRedraw={onRedraw} onSelect={vi.fn()} />)
     expect(screen.getByRole('button', { name: /Sortear nova equipe \(2 restantes\)/ })).toBeEnabled()
   })
