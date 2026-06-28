@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
 import { DraftScreen } from './components/DraftScreen'
+import { DraftSummaryScreen } from './components/DraftSummaryScreen'
 import { FinalScreen } from './components/FinalScreen'
 import { Header } from './components/Header'
 import { HomeScreen } from './components/HomeScreen'
@@ -8,12 +9,12 @@ import { TacticsScreen } from './components/TacticsScreen'
 import { TournamentScreen } from './components/TournamentScreen'
 import { playerById } from './data/players'
 import { canRerollTeam } from './game/balance'
-import { getAvailableDraftTeams, getDraftTeam, validateDraftPick } from './game/draft'
+import { createDraftPickHistoryItem, getAvailableDraftTeams, getDraftTeam, updateRecentTeamIds, validateDraftPick } from './game/draft'
 import { createMatchSimulation } from './game/simulation'
 import { createDefaultLineup, validateStartingLineup } from './game/squad'
 import { applyMatch, opponentFor, stageFor } from './game/tournament'
 import { campaignRepository } from './repository/campaignRepository'
-import type { Difficulty, Formation, GameCampaign, GamePlayer, MatchSimulationPlan, Opponent, Strategy } from './types'
+import type { Difficulty, DraftTeam, Formation, GameCampaign, GamePlayer, MatchSimulationPlan, Opponent, Strategy } from './types'
 
 export function App() {
   const [campaigns, setCampaigns] = useState(() => campaignRepository.list())
@@ -25,8 +26,8 @@ export function App() {
   const completedMatches = useRef(new Set<string>())
 
   const squad = useMemo(() => campaign?.playerIds.map((id) => playerById.get(id)).filter((player): player is GamePlayer => Boolean(player)) ?? [], [campaign])
-  const draftTeam = useMemo(() => campaign?.selectedFormation ? getDraftTeam(campaign.id, squad, campaign.selectedFormation, campaign.teamRerollsUsed) : null, [campaign, squad])
-  const hasAlternativeDraftTeam = useMemo(() => campaign?.selectedFormation ? getAvailableDraftTeams(campaign.id, squad, campaign.selectedFormation).length > 1 : false, [campaign, squad])
+  const draftTeam = useMemo(() => campaign?.selectedFormation ? getDraftTeam(campaign.id, squad, campaign.selectedFormation, campaign.teamRerollsUsed, campaign.recentTeamIds ?? []) : null, [campaign, squad])
+  const hasAlternativeDraftTeam = useMemo(() => campaign?.selectedFormation ? getAvailableDraftTeams(campaign.id, squad, campaign.selectedFormation, campaign.recentTeamIds ?? []).length > 1 : false, [campaign, squad])
 
   function persist(next: GameCampaign) {
     const saved = campaignRepository.save(next)
@@ -54,28 +55,52 @@ export function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  function selectPlayer(player: GamePlayer) {
+  function selectPlayer(player: GamePlayer, team: DraftTeam) {
     if (!campaign?.selectedFormation || validateDraftPick(player, squad, campaign.selectedFormation)) return
+    const selectedAt = new Date().toISOString()
     const playerIds = [...campaign.playerIds, player.id]
     const completedSquad = [...squad, player]
     const complete = playerIds.length === 11
+    const pickHistory = [
+      ...(campaign.pickHistory ?? []),
+      createDraftPickHistoryItem({
+        pickNumber: (campaign.pickHistory?.length ?? 0) + 1,
+        player,
+        team,
+        selectedAt,
+      }),
+    ]
     persist({
       ...campaign,
       playerIds,
+      pickHistory,
+      recentTeamIds: updateRecentTeamIds(campaign.recentTeamIds ?? [], [team.id]),
+      draftCompletedAt: complete ? selectedAt : campaign.draftCompletedAt,
       starterIds: complete ? createDefaultLineup(completedSquad, campaign.selectedFormation) : [],
-      status: complete ? 'active' : 'draft',
-      updatedAt: new Date().toISOString(),
+      status: complete ? 'draft_summary' : 'draft',
+      updatedAt: selectedAt,
     })
   }
 
   function redrawDraftTeam() {
     if (!campaign?.selectedFormation || !hasAlternativeDraftTeam || !canRerollTeam(campaign.selectedDifficulty, campaign.teamRerollsUsed)) return
-    persist({ ...campaign, teamRerollsUsed: campaign.teamRerollsUsed + 1, updatedAt: new Date().toISOString() })
+    persist({
+      ...campaign,
+      teamRerollsUsed: campaign.teamRerollsUsed + 1,
+      recentTeamIds: draftTeam ? updateRecentTeamIds(campaign.recentTeamIds ?? [], [draftTeam.id]) : campaign.recentTeamIds,
+      updatedAt: new Date().toISOString(),
+    })
   }
 
   function confirmTactics() {
     if (!campaign) return
-    persist({ ...campaign, selectedFormation: formation, selectedStrategy: strategy, selectedDifficulty: difficulty, teamRerollsUsed: 0, status: 'draft', updatedAt: new Date().toISOString() })
+    persist({ ...campaign, selectedFormation: formation, selectedStrategy: strategy, selectedDifficulty: difficulty, teamRerollsUsed: 0, recentTeamIds: [], pickHistory: [], draftCompletedAt: undefined, status: 'draft', updatedAt: new Date().toISOString() })
+  }
+
+  function continueAfterDraftSummary() {
+    if (!campaign?.selectedFormation || squad.length !== 11 || (campaign.pickHistory?.length ?? 0) !== 11) return
+    const starterIds = campaign.starterIds.length > 0 ? campaign.starterIds : createDefaultLineup(squad, campaign.selectedFormation)
+    persist({ ...campaign, starterIds, status: 'active', updatedAt: new Date().toISOString() })
   }
 
   function saveLineup(starterIds: string[]) {
@@ -130,6 +155,8 @@ export function App() {
     screen = <TacticsScreen formation={formation} difficulty={difficulty} onFormation={setFormation} onDifficulty={setDifficulty} onConfirm={confirmTactics} />
   } else if (campaign.status === 'draft') {
     screen = <DraftScreen selected={squad} team={draftTeam} formation={campaign.selectedFormation!} difficulty={campaign.selectedDifficulty} teamRerollsUsed={campaign.teamRerollsUsed} hasAlternativeTeam={hasAlternativeDraftTeam} onRedraw={redrawDraftTeam} onSelect={selectPlayer} />
+  } else if (campaign.status === 'draft_summary') {
+    screen = <DraftSummaryScreen squad={squad} formation={campaign.selectedFormation!} pickHistory={campaign.pickHistory ?? []} onContinue={continueAfterDraftSummary} />
   } else if (campaign.status === 'active') {
     const opponent = opponentFor(campaign)
     const bestPlayer = squad.filter((player) => player.position !== 'TECNICO').sort((a, b) => b.overall - a.overall)[0]

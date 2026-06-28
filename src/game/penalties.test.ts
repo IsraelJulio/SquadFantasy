@@ -23,7 +23,7 @@ const saved = () => {
 
 describe('disputa por pênaltis', () => {
   it('limita a chance entre 55% e 90% usando overall e stamina atuais', () => {
-    const athlete = (overall: number, stamina: number): GameAthlete => ({ id: crypto.randomUUID(), name: 'Atleta', position: 'ALA', overallOriginal: 99, overall, stamina })
+    const athlete = (overall: number, stamina: number): GameAthlete => ({ id: crypto.randomUUID(), name: 'Atleta', position: 'ALA', overallOriginal: 99, overall, stamina, carta: '', perfil: '', campeao: false })
     expect(calculatePenaltyChance(athlete(20, 0), athlete(99, 100), 0.9, 1)).toBe(0.55)
     expect(calculatePenaltyChance(athlete(99, 100), athlete(20, 0), 1.2, 1.1)).toBe(0.9)
   })

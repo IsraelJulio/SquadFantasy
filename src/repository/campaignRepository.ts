@@ -8,6 +8,9 @@ type StoredCampaign = Omit<GameCampaign, 'losingStreak' | 'selectedDifficulty' |
   losingStreak?: number
   selectedDifficulty?: GameCampaign['selectedDifficulty']
   teamRerollsUsed?: number
+  recentTeamIds?: GameCampaign['recentTeamIds']
+  pickHistory?: GameCampaign['pickHistory']
+  draftCompletedAt?: GameCampaign['draftCompletedAt']
   currentGroupRound?: GameCampaign['currentGroupRound']
   groupTeams?: GameCampaign['groupTeams']
   groupMatches?: GameCampaign['groupMatches']
@@ -20,7 +23,16 @@ function normalizeCampaign(campaign: StoredCampaign): GameCampaign {
   const group = campaign.groupTeams?.length === 4 && campaign.groupMatches?.length === 6
     ? { currentGroupRound: campaign.currentGroupRound ?? 1, groupTeams: campaign.groupTeams, groupMatches: campaign.groupMatches }
     : createGroupStage(campaign.id)
-  return { ...campaign, ...group, losingStreak: campaign.losingStreak ?? 0, selectedDifficulty, teamRerollsUsed }
+  return {
+    ...campaign,
+    ...group,
+    losingStreak: campaign.losingStreak ?? 0,
+    selectedDifficulty,
+    teamRerollsUsed,
+    recentTeamIds: campaign.recentTeamIds ?? [],
+    pickHistory: campaign.pickHistory ?? [],
+    draftCompletedAt: campaign.draftCompletedAt,
+  }
 }
 
 function readAll(): GameCampaign[] {
@@ -54,6 +66,8 @@ export const campaignRepository = {
       selectedStrategy: null,
       selectedDifficulty: 'NORMAL',
       teamRerollsUsed: 0,
+      recentTeamIds: [],
+      pickHistory: [],
       ...createGroupStage(id),
       playerIds: [],
       starterIds: [],

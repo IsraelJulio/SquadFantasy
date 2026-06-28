@@ -43,6 +43,9 @@ function createOpponentCoach(opponent: Opponent): GameCoach {
     position: 'TECNICO',
     overallOriginal,
     overall: overallOriginal,
+    carta: '',
+    perfil: '',
+    campeao: false,
   }
 }
 

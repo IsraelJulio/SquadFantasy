@@ -4,7 +4,7 @@ export type Formation = 'DIAMOND_3_1' | 'SQUARE_2_2' | 'FOUR_ZERO' | 'THREE_TWO'
 export type Strategy = 'Ofensivo' | 'Equilibrado' | 'Defensivo' | 'Contra-ataque' | 'Posse de bola'
 export type Difficulty = 'CASUAL' | 'NORMAL' | 'CHALLENGE'
 export type Stage = 'Fase de grupos' | 'Oitavas' | 'Quartas' | 'Semifinal' | 'Final'
-export type CampaignStatus = 'tactics' | 'draft' | 'active' | 'champion' | 'eliminated'
+export type CampaignStatus = 'tactics' | 'draft' | 'draft_summary' | 'active' | 'champion' | 'eliminated'
 export type MatchResult = 'victory' | 'draw' | 'defeat'
 export type MatchSimulationStatus = 'not_started' | 'first_half' | 'half_time' | 'second_half' | 'paused' | 'awaiting_penalties' | 'penalties' | 'finished'
 export type MatchEventType = 'kick-off' | 'goal' | 'chance' | 'save' | 'foul' | 'substitution' | 'fatigue' | 'half-time' | 'second-half' | 'full-time'
@@ -57,6 +57,12 @@ interface PersonBase {
   position: FutsalPosition
   overallOriginal: number
   overall: number
+  carta: string
+  perfil: string
+  campeao: boolean
+  teamId?: string
+  teamName?: string
+  role?: 'PLAYER' | 'COACH'
 }
 
 export interface GameAthlete extends PersonBase {
@@ -88,6 +94,34 @@ export interface DraftTeam {
   flagUrl?: string
   players: GamePlayer[]
   rosterNotes?: string[]
+}
+
+export interface DraftOption {
+  player: GamePlayer
+  teamId: string
+  teamName: string
+}
+
+export interface DraftPickHistoryItem {
+  pickNumber: number
+  playerId: string
+  playerName: string
+  position: FutsalPosition
+  role: 'PLAYER' | 'COACH'
+  teamId: string
+  teamName: string
+  overallOriginal: number
+  overall: number
+  selectedAt: string
+}
+
+export type DraftTeamGrade = 'S' | 'A' | 'B' | 'C' | 'D' | 'E' | 'F'
+
+export interface DraftSummaryGrade {
+  grade: DraftTeamGrade
+  score: number
+  label: string
+  description: string
 }
 
 export interface Opponent {
@@ -178,6 +212,9 @@ export interface GameCampaign {
   selectedStrategy: Strategy | null
   selectedDifficulty: Difficulty
   teamRerollsUsed: number
+  recentTeamIds?: string[]
+  pickHistory?: DraftPickHistoryItem[]
+  draftCompletedAt?: string
   currentGroupRound: 1 | 2 | 3
   groupTeams: GroupTeam[]
   groupMatches: GroupMatch[]

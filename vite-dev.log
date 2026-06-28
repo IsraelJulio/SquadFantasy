@@ -1,0 +1,30 @@
+
+> esquadrao-imortal@1.0.0 dev
+> vite --host 127.0.0.1
+
+10:03:23 AM [vite] (client) Re-optimizing dependencies because vite config has changed
+Port 5173 is in use, trying another one...
+
+  VITE v8.1.0  ready in 519 ms
+
+  ➜  Local:   http://127.0.0.1:5174/
+10:12:25 AM [vite] (client) hmr update /src/components/DraftSummaryScreen.tsx
+10:12:35 AM [vite] (client) hmr update /src/App.tsx
+10:15:58 AM [vite] (client) hmr update /src/App.tsx, /src/components/GroupStageCard.tsx, /src/components/DraftTeamCard.tsx
+10:17:29 AM [vite] (client) hmr update /src/App.tsx, /src/components/GroupStageCard.tsx, /src/components/DraftTeamCard.tsx
+10:17:37 AM [vite] (client) hmr update /src/App.tsx, /src/components/GroupStageCard.tsx, /src/components/DraftTeamCard.tsx
+10:30:02 AM [vite] (client) hmr update /src/App.tsx, /src/components/DraftTeamCard.tsx
+10:32:15 AM [vite] (client) hmr update /src/App.tsx, /src/components/DraftTeamCard.tsx
+5:56:22 PM [vite] (client) hmr update /src/App.tsx, /src/components/GroupStageCard.tsx, /src/components/DraftTeamCard.tsx
+5:58:24 PM [vite] (client) hmr update /src/App.tsx, /src/components/GroupStageCard.tsx, /src/components/DraftTeamCard.tsx
+6:00:00 PM [vite] (client) hmr update /src/App.tsx, /src/components/GroupStageCard.tsx, /src/components/DraftTeamCard.tsx
+6:04:29 PM [vite] (client) hmr update /src/App.tsx, /src/components/GroupStageCard.tsx, /src/components/DraftTeamCard.tsx
+6:04:45 PM [vite] (client) hmr update /src/App.tsx, /src/components/MatchSimulationScreen.tsx
+6:05:28 PM [vite] (client) hmr update /src/App.tsx, /src/components/GroupStageCard.tsx, /src/components/DraftTeamCard.tsx
+6:07:26 PM [vite] (client) hmr update /src/App.tsx, /src/components/GroupStageCard.tsx, /src/components/DraftTeamCard.tsx
+6:46:13 PM [vite] (client) hmr update /src/App.tsx, /src/components/GroupStageCard.tsx, /src/components/DraftTeamCard.tsx
+6:46:13 PM [vite] (client) hmr update /src/App.tsx, /src/components/GroupStageCard.tsx, /src/components/DraftTeamCard.tsx
+6:51:58 PM [vite] (client) hmr update /src/App.tsx, /src/components/DraftTeamCard.tsx
+2:44:58 AM [vite] (client) hmr update /src/components/PenaltyShootoutPanel.tsx
+2:45:01 AM [vite] (client) hmr update /src/components/MatchSimulationScreen.tsx
+2:45:22 AM [vite] (client) hmr update /src/components/PenaltyShootoutPanel.tsx

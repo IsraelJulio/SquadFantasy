@@ -17,6 +17,9 @@ const athlete = (fatigueFactor: number, stamina = 100, overallOriginal = 80): Ga
   overall: calculateCurrentOverall(overallOriginal, stamina, fatigueFactor),
   stamina,
   fatigueFactor,
+  carta: '',
+  perfil: '',
+  campeao: false,
 })
 
 describe('regras de stamina e fatigueFactor', () => {

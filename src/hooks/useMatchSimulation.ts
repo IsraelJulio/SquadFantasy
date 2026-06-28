@@ -10,7 +10,6 @@ import {
 } from "../game/simulation";
 import {
   createPenaltyShootout,
-  getPenaltyParticipants,
   startPenaltyShootout,
   takeNextPenalty,
 } from "../game/penalties";
@@ -23,6 +22,7 @@ import type {
 } from "../types";
 
 export const SIMULATION_TICK_MS = 1500;
+export const PENALTY_SHOT_INTERVAL_MS = 2000;
 const HALF_TIME_PAUSE_MS = 1_000;
 
 export function useMatchSimulation(
@@ -171,20 +171,17 @@ export function useMatchSimulation(
     setStatus("penalties");
   }
 
-  function takePenalty() {
+  useEffect(() => {
     if (status !== "penalties" || shootout.status !== "in_progress") return;
-    const next = takeNextPenalty(liveState, shootout);
-    setShootout(next);
-    if (next.status === "finished") completeMatch(liveState, next);
-  }
 
-  function skipPenalties() {
-    if (status !== "penalties" || shootout.status !== "in_progress") return;
-    let next = shootout;
-    while (next.status !== "finished") next = takeNextPenalty(liveState, next);
-    setShootout(next);
-    completeMatch(liveState, next);
-  }
+    const timer = window.setTimeout(() => {
+      const next = takeNextPenalty(liveState, shootout);
+      setShootout(next);
+      if (next.status === "finished") completeMatch(liveState, next);
+    }, PENALTY_SHOT_INTERVAL_MS);
+
+    return () => window.clearTimeout(timer);
+  }, [completeMatch, liveState, shootout, status]);
 
   const latestGoal = [...liveState.events]
     .reverse()
@@ -195,10 +192,6 @@ export function useMatchSimulation(
   const benchPlayers = liveState.benchIds
     .map((id) => liveState.userPlayers.find((player) => player.id === id))
     .filter((player): player is GameAthlete => Boolean(player));
-  const penaltyParticipants =
-    shootout.status === "in_progress"
-      ? getPenaltyParticipants(liveState, shootout)
-      : null;
 
   return {
     status,
@@ -212,7 +205,6 @@ export function useMatchSimulation(
     benchPlayers,
     completedPlan,
     shootout,
-    penaltyParticipants,
     start,
     accelerate,
     pauseForSubstitution,
@@ -220,7 +212,5 @@ export function useMatchSimulation(
     substitute,
     skipToEnd,
     beginPenalties,
-    takePenalty,
-    skipPenalties,
   };
 }

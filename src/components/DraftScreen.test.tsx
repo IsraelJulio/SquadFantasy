@@ -6,14 +6,14 @@ import { DraftScreen } from './DraftScreen'
 afterEach(cleanup)
 
 describe('DraftScreen', () => {
-  it('mostra três sorteios no Casual e atualiza o contador recebido', () => {
+  it('mostra tres sorteios no Casual e atualiza o contador recebido', () => {
     const onRedraw = vi.fn()
     const { rerender } = render(<DraftScreen selected={[]} team={draftTeams[0]} formation="DIAMOND_3_1" difficulty="CASUAL" teamRerollsUsed={0} hasAlternativeTeam onRedraw={onRedraw} onSelect={vi.fn()} />)
 
     fireEvent.click(screen.getByRole('button', { name: /Sortear nova equipe \(3 restantes\)/ }))
     expect(onRedraw).toHaveBeenCalledOnce()
     expect(screen.getAllByText(`${draftTeams[0].players[0].overall} OVR`).length).toBeGreaterThan(0)
-    expect(screen.queryByText(/Escolha um atleta ou técnico desta equipe/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Escolha um atleta ou tecnico desta equipe/)).not.toBeInTheDocument()
     expect(screen.queryByText('Necessidades do elenco')).not.toBeInTheDocument()
     expect(screen.queryByText(/^Atletas$/)).not.toBeInTheDocument()
     expect(screen.queryByText(/^Total$/)).not.toBeInTheDocument()
@@ -32,7 +32,7 @@ describe('DraftScreen', () => {
 
   it('desabilita o sorteio no modo Desafio', () => {
     render(<DraftScreen selected={[]} team={draftTeams[0]} formation="DIAMOND_3_1" difficulty="CHALLENGE" teamRerollsUsed={0} hasAlternativeTeam onRedraw={vi.fn()} onSelect={vi.fn()} />)
-    expect(screen.getByRole('button', { name: 'Sorteio extra indisponível no modo Desafio' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Sorteio extra indisponivel no modo Desafio' })).toBeDisabled()
     expect(screen.queryByText(`${draftTeams[0].players[0].overall} OVR`)).not.toBeInTheDocument()
   })
 })

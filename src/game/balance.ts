@@ -40,7 +40,7 @@ export const DIFFICULTY_SETTINGS: Record<Difficulty, DifficultySettings> = {
     description: "Oculta overall no draft e não permite sortear nova equipe.",
     userStrengthBoost: 1,
     underdogTargetRatio: 1,
-    maximumStrengthBoost: 1,
+    maximumStrengthBoost: 1.28,
   },
 };
 

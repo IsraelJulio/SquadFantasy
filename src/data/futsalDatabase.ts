@@ -44,14 +44,31 @@ export type FutsalDatabaseJson = {
   coaches: FutsalCoachJson[]
 }
 
-const database = databaseJson as FutsalDatabaseJson
+export function normalizeGamePlayer(player: Partial<GamePlayer>): GamePlayer {
+  return {
+    ...player,
+    carta: player.carta ?? '',
+    perfil: player.perfil ?? '',
+    campeao: player.campeao ?? false,
+  } as GamePlayer
+}
+
+function normalizeFutsalDatabase(rawDatabase: FutsalDatabaseJson): FutsalDatabaseJson {
+  return {
+    ...rawDatabase,
+    players: rawDatabase.players.map((player) => normalizeGamePlayer(player) as FutsalPlayerJson),
+    coaches: rawDatabase.coaches.map((coach) => normalizeGamePlayer(coach) as FutsalCoachJson),
+  }
+}
+
+const database = normalizeFutsalDatabase(databaseJson as FutsalDatabaseJson)
 const validPlayerPositions: FutsalPlayerPosition[] = ['GOLEIRO', 'FIXO', 'ALA', 'PIVO']
 const validFormations: FutsalFormationKey[] = ['DIAMOND_3_1', 'SQUARE_2_2', 'FOUR_ZERO', 'THREE_TWO']
 const validStrategies: GameStrategy[] = ['Ofensivo', 'Equilibrado', 'Defensivo', 'Contra-ataque', 'Posse de bola']
 const minOverall = 50
 const maxOverall = 100
 const minFatigueFactor = 0.6
-const maxFatigueFactor = 1.8
+const maxFatigueFactor = 1.95
 
 function duplicateIds(items: { id: string }[]) {
   const seen = new Set<string>()
@@ -169,6 +186,9 @@ export function validateFutsalDatabase(databaseToValidate: FutsalDatabaseJson): 
     if (player.overall < minOverall || player.overall > maxOverall) errors.push(`Atleta ${player.id} tem overall fora da faixa permitida`)
     if (player.overallOriginal < minOverall || player.overallOriginal > maxOverall) errors.push(`Atleta ${player.id} tem overallOriginal fora da faixa permitida`)
     if (player.fatigueFactor < minFatigueFactor || player.fatigueFactor > maxFatigueFactor) errors.push(`Atleta ${player.id} tem fatigueFactor fora da faixa permitida`)
+    if (typeof player.carta !== 'string') errors.push(`Atleta ${player.id} deve ter carta string`)
+    if (typeof player.perfil !== 'string') errors.push(`Atleta ${player.id} deve ter perfil string`)
+    if (typeof player.campeao !== 'boolean') errors.push(`Atleta ${player.id} deve ter campeao boolean`)
   }
 
   for (const coach of databaseToValidate.coaches) {
@@ -180,14 +200,17 @@ export function validateFutsalDatabase(databaseToValidate: FutsalDatabaseJson): 
     if (!validStrategies.includes(coach.preferredStrategy)) errors.push(`Tecnico ${coach.id} tem estrategia preferida invalida`)
     if ('stamina' in coach) errors.push(`Tecnico ${coach.id} nao deve ter stamina`)
     if ('fatigueFactor' in coach) errors.push(`Tecnico ${coach.id} nao deve ter fatigueFactor`)
+    if (typeof coach.carta !== 'string') errors.push(`Tecnico ${coach.id} deve ter carta string`)
+    if (typeof coach.perfil !== 'string') errors.push(`Tecnico ${coach.id} deve ter perfil string`)
+    if (typeof coach.campeao !== 'boolean') errors.push(`Tecnico ${coach.id} deve ter campeao boolean`)
   }
 
   const assignedPlayerIds = new Set<string>()
   for (const team of databaseToValidate.teams) {
     if (!validFormations.includes(team.defaultFormationKey)) errors.push(`Time ${team.id} tem formacao invalida`)
     if (!validStrategies.includes(team.defaultStrategy)) errors.push(`Time ${team.id} tem estrategia invalida`)
-    if (team.level < minOverall || team.level > maxOverall) errors.push(`Time ${team.id} tem level fora da faixa permitida`)
     const teamPlayerIds = getTeamPlayerIds(team)
+    if (teamPlayerIds.length > 0 && (team.level < minOverall || team.level > maxOverall)) errors.push(`Time ${team.id} tem level fora da faixa permitida`)
     if (team.coachId && !coachIds.has(team.coachId)) errors.push(`Time ${team.id} aponta para tecnico inexistente: ${team.coachId}`)
 
     const teamCoachCount = databaseToValidate.coaches.filter((coach) => coach.teamId === team.id).length

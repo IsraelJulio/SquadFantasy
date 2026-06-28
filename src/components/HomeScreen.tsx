@@ -2,7 +2,7 @@ import type { GameCampaign } from '../types'
 
 interface HomeScreenProps { campaigns: GameCampaign[]; onStart: () => void; onOpen: (campaign: GameCampaign) => void; onDelete: (id: string) => void }
 
-const statusLabel: Record<GameCampaign['status'], string> = { draft: 'Draft em andamento', tactics: 'Definir sistema', active: 'Copa em andamento', champion: 'Campeão', eliminated: 'Encerrada' }
+const statusLabel: Record<GameCampaign['status'], string> = { draft: 'Draft em andamento', draft_summary: 'Resumo do draft', tactics: 'Definir sistema', active: 'Copa em andamento', champion: 'Campeão', eliminated: 'Encerrada' }
 
 export function HomeScreen({ campaigns, onStart, onOpen, onDelete }: HomeScreenProps) {
   return (

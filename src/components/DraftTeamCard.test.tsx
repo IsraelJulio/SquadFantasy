@@ -53,8 +53,9 @@ describe('DraftTeamCard', () => {
 
   it('ordena os jogadores por posicao durante o draft', () => {
     const makePlayer = (id: string, name: string, position: GamePlayer['position']): GamePlayer => {
-      if (position === 'TECNICO') return { id, name, position: 'TECNICO', overall: 80, overallOriginal: 80 }
-      return { id, name, position, overall: 80, overallOriginal: 80, stamina: 100 }
+      const defaults = { carta: '', perfil: '', campeao: false }
+      if (position === 'TECNICO') return { id, name, position: 'TECNICO', overall: 80, overallOriginal: 80, ...defaults }
+      return { id, name, position, overall: 80, overallOriginal: 80, stamina: 100, ...defaults }
     }
     const team: DraftTeam = {
       id: 'unordered-team',

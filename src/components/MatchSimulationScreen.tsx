@@ -29,7 +29,7 @@ export function MatchSimulationScreen({ campaign, opponent, plan, onFinished, on
           <button className="button button--ghost" onClick={simulation.skipToEnd}>Pular para o final</button>
         </>}
       </div>}
-      {penaltiesVisible && <PenaltyShootoutPanel opponentName={`${opponent.name} ${opponent.year}`} regulationScore={{ user: simulation.userScore, opponent: simulation.opponentScore }} shootout={simulation.shootout} participants={simulation.penaltyParticipants} onStart={simulation.beginPenalties} onShoot={simulation.takePenalty} onSkip={simulation.skipPenalties} />}
+      {penaltiesVisible && <PenaltyShootoutPanel opponentName={`${opponent.name} ${opponent.year}`} shootout={simulation.shootout} onStart={simulation.beginPenalties} />}
       <MatchEventHighlight event={simulation.latestGoal} />
       <MatchTimeline events={simulation.visibleEvents} />
       {simulation.status === 'paused' && <SubstitutionModal mode="in_match" activePlayers={simulation.activePlayers} benchPlayers={simulation.benchPlayers} onClose={simulation.cancelSubstitution} onConfirm={(playerOutId, playerInId) => simulation.substitute({ playerOutId, playerInId })} />}

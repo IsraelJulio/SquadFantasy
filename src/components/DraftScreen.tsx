@@ -10,7 +10,7 @@ interface DraftScreenProps {
   teamRerollsUsed: number
   hasAlternativeTeam: boolean
   onRedraw: () => void
-  onSelect: (player: GamePlayer) => void
+  onSelect: (player: GamePlayer, team: DraftTeam) => void
 }
 
 export function DraftScreen({ selected, team, formation, difficulty, teamRerollsUsed, hasAlternativeTeam, onRedraw, onSelect }: DraftScreenProps) {
@@ -21,27 +21,28 @@ export function DraftScreen({ selected, team, formation, difficulty, teamRerolls
   const canRedraw = canRerollTeam(difficulty, teamRerollsUsed) && hasAlternativeTeam
   const showOverall = shouldShowDraftPlayerOverall(difficulty)
   const redrawLabel = difficultyRules.maxTeamRerolls === 0
-    ? 'Sorteio extra indisponível no modo Desafio'
+    ? 'Sorteio extra indisponivel no modo Desafio'
     : remainingRerolls === 0
       ? 'Sorteios extras esgotados'
-      : `🎲 Sortear nova equipe (${remainingRerolls} ${remainingRerolls === 1 ? 'restante' : 'restantes'})`
+      : `Sortear nova equipe (${remainingRerolls} ${remainingRerolls === 1 ? 'restante' : 'restantes'})`
   const redrawHelp = difficultyRules.maxTeamRerolls === 0
-    ? 'O modo Desafio não permite sorteios extras.'
+    ? 'O modo Desafio nao permite sorteios extras.'
     : remainingRerolls === 0
-      ? 'Você já usou todos os sorteios extras disponíveis para este nível.'
+      ? 'Voce ja usou todos os sorteios extras disponiveis para este nivel.'
       : hasAlternativeTeam
         ? 'Quer avaliar outros jogadores antes de contratar?'
-        : 'Nenhuma outra equipe possui opções válidas nesta rodada.'
+        : 'Nenhuma outra equipe possui opcoes validas nesta rodada.'
+
   return (
     <main className="game-shell">
       <section className="game-heading">
-        <div><span className="eyebrow"> ESCOLHA OS JOGADORES TITULÁRES E RESERVAS</span><h1>Draft por <em>equipes</em></h1></div>
+        <div><span className="eyebrow">ESCOLHA OS JOGADORES TITULARES E RESERVAS</span><h1>Draft por <em>equipes</em></h1></div>
         <div className="progress-ring" style={{ '--progress': `${progress * 3.6}deg` } as React.CSSProperties}><span><b>{round}</b>/11</span></div>
       </section>
       <div className="draft-progress"><span style={{ width: `${progress}%` }} /></div>
-      {team && <div className="draft-redraw"><div><strong>OPÇÕES DA RODADA</strong><span>{redrawHelp}</span></div><button className="button draft-redraw__button" onClick={onRedraw} disabled={!canRedraw}>{redrawLabel}</button></div>}
-      {team ? <DraftTeamCard key={team.id} team={team} selected={selected} formation={formation} showOverall={showOverall} onSelect={onSelect} /> : <section className="draft-team-empty"><h2>Nenhuma contratação disponível</h2><p>Revise a composição exigida pela formação.</p></section>}
-      {selected.length > 0 && <section className="picked-strip"><span>SEU ELENCO</span><div>{selected.map((player) => <div className={`picked-avatar ${player.position === 'TECNICO' ? 'picked-avatar--coach' : ''}`} key={player.id} title={`${player.name} · ${player.position}`}>{player.name.split(' ').map((part) => part[0]).join('').slice(0, 2)}</div>)}{Array.from({ length: 11 - selected.length }, (_, index) => <div className="picked-avatar picked-avatar--empty" key={index}>+</div>)}</div></section>}
+      {team && <div className="draft-redraw"><div><strong>OPCOES DA RODADA</strong><span>{redrawHelp}</span></div><button className="button draft-redraw__button" onClick={onRedraw} disabled={!canRedraw}>{redrawLabel}</button></div>}
+      {team ? <DraftTeamCard key={team.id} team={team} selected={selected} formation={formation} showOverall={showOverall} onSelect={(player) => onSelect(player, team)} /> : <section className="draft-team-empty"><h2>Nenhuma contratacao disponivel</h2><p>Revise a composicao exigida pela formacao.</p></section>}
+      {selected.length > 0 && <section className="picked-strip"><span>SEU ELENCO</span><div>{selected.map((player) => <div className={`picked-avatar ${player.position === 'TECNICO' ? 'picked-avatar--coach' : ''}`} key={player.id} title={`${player.name} - ${player.position}`}>{player.name.split(' ').map((part) => part[0]).join('').slice(0, 2)}</div>)}{Array.from({ length: 11 - selected.length }, (_, index) => <div className="picked-avatar picked-avatar--empty" key={index}>+</div>)}</div></section>}
     </main>
   )
 }

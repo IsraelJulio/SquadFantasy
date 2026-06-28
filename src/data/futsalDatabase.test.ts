@@ -16,6 +16,7 @@ import {
   getCoachByTeamId,
   getPlayersByTeamId,
   getTeamById,
+  normalizeGamePlayer,
   validateFutsalDatabase,
 } from './futsalDatabase'
 
@@ -48,6 +49,25 @@ describe('futsalDatabase', () => {
     expect(getPlayersByTeamId(playerTeam.id).every((player) => player.role === 'PLAYER')).toBe(true)
     expect(getCoachByTeamId(coachTeam.id)).toMatchObject({ teamId: coachTeam.id, role: 'COACH', position: 'TECNICO' })
     expect(getTeamById('time-inexistente')).toBeUndefined()
+  })
+
+  it('mantem os campos visuais e de campeao em atletas e tecnicos', () => {
+    const players = getAllPlayers()
+    const coaches = getAllCoaches()
+
+    expect(players.every((player) => player.carta === '' && player.perfil === '' && player.campeao === false)).toBe(true)
+    expect(coaches.every((coach) => coach.carta === '' && coach.perfil === '' && coach.campeao === false)).toBe(true)
+  })
+
+  it('normaliza dados antigos sem campos carta, perfil e campeao', () => {
+    expect(normalizeGamePlayer({
+      id: 'legacy',
+      name: 'Legado',
+      position: 'ALA',
+      overallOriginal: 70,
+      overall: 70,
+      stamina: 100,
+    })).toMatchObject({ carta: '', perfil: '', campeao: false })
   })
 
   it('monta DraftTeam e Opponent a partir do JSON', () => {
@@ -91,12 +111,15 @@ describe('futsalDatabase', () => {
   it('retorna erros quando a base quebra regras obrigatorias', () => {
     const invalid: FutsalDatabaseJson = {
       ...futsalDatabase,
-      players: [{ ...futsalDatabase.players[0], stamina: 90 }, ...futsalDatabase.players.slice(1)],
+      players: [{ ...futsalDatabase.players[0], stamina: 90, carta: 10 as never, perfil: false as never, campeao: 'sim' as never }, ...futsalDatabase.players.slice(1)],
       teams: [{ ...futsalDatabase.teams[0], playerIds: ['atleta-inexistente'] }, ...futsalDatabase.teams.slice(1)],
     }
 
     expect(validateFutsalDatabase(invalid)).toEqual(expect.arrayContaining([
       expect.stringContaining('stamina 100'),
+      expect.stringContaining('carta string'),
+      expect.stringContaining('perfil string'),
+      expect.stringContaining('campeao boolean'),
       expect.stringContaining('aponta para atleta inexistente'),
     ]))
   })
