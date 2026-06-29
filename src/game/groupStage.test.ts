@@ -5,6 +5,7 @@ import {
   calculateGroupStandings,
   createGroupStage,
   didUserQualifyFromGroup,
+  finishGroupStageIfNeeded,
   finishGroupRound,
   simulateCpuGroupMatch,
 } from './groupStage'
@@ -104,32 +105,58 @@ describe('finishGroupRound', () => {
     expect(next.groupPoints).toBe(3)
   })
 
-  it('encerra a fase de grupos ao fim da terceira rodada', () => {
+  it('abre a classificacao final ao fim da terceira rodada', () => {
     let campaign = campaignForGroup()
     campaign = finishGroupRound(campaign, { userScore: 3, opponentScore: 0 })
     campaign = finishGroupRound(campaign, { userScore: 2, opponentScore: 0 })
     campaign = finishGroupRound(campaign, { userScore: 1, opponentScore: 0 })
 
-    expect(campaign.currentStage).toBe('Oitavas')
+    expect(campaign.currentStage).toBe('Classificacao Final do Grupo')
     expect(campaign.status).toBe('active')
     expect(campaign.groupMatches.every((item) => item.played)).toBe(true)
   })
 })
 
+describe('finishGroupStageIfNeeded', () => {
+  it('nao muda o estagio se ainda existem jogos nao disputados', () => {
+    const campaign = campaignForGroup()
+
+    expect(finishGroupStageIfNeeded(campaign).currentStage).toBe('Fase de grupos')
+  })
+
+  it('muda para classificacao final quando todos os jogos do grupo foram disputados', () => {
+    const campaign = {
+      ...campaignForGroup(),
+      groupMatches: campaignForGroup().groupMatches.map((item) => ({ ...item, played: true, homeScore: 1, awayScore: 0 })),
+    }
+
+    expect(finishGroupStageIfNeeded(campaign).currentStage).toBe('Classificacao Final do Grupo')
+  })
+})
+
 describe('didUserQualifyFromGroup', () => {
-  it('retorna true para primeiro e segundo, false para terceiro e quarto', () => {
-    const standings = calculateGroupStandings(teams, [
+  const standings = calculateGroupStandings(teams, [
       match('m1', 1, teams[0], teams[1], 2, 0),
       match('m2', 1, teams[2], teams[3], 1, 0),
       match('m3', 2, teams[0], teams[2], 1, 0),
       match('m4', 2, teams[1], teams[3], 2, 0),
       match('m5', 3, teams[0], teams[3], 0, 0),
       match('m6', 3, teams[1], teams[2], 2, 0),
-    ])
+  ])
 
+  it('retorna true se usuario ficou em primeiro', () => {
     expect(didUserQualifyFromGroup(standings, standings[0].teamId)).toBe(true)
+  })
+
+  it('retorna true se usuario ficou em segundo', () => {
     expect(didUserQualifyFromGroup(standings, standings[1].teamId)).toBe(true)
+  })
+
+  it('retorna false se usuario ficou em terceiro', () => {
     expect(didUserQualifyFromGroup(standings, standings[2].teamId)).toBe(false)
+  })
+
+  it('retorna false se usuario ficou em quarto', () => {
     expect(didUserQualifyFromGroup(standings, standings[3].teamId)).toBe(false)
   })
 })

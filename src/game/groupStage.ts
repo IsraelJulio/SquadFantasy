@@ -159,6 +159,16 @@ export function didUserQualifyFromGroup(standings: GroupStanding[], userTeamId =
   return userIndex >= 0 && userIndex < 2
 }
 
+export function finishGroupStageIfNeeded(campaign: GameCampaign): GameCampaign {
+  const allGroupMatchesPlayed = campaign.groupMatches.every((match) => match.played)
+  if (!allGroupMatchesPlayed) return campaign
+
+  return {
+    ...campaign,
+    currentStage: 'Classificacao Final do Grupo',
+  }
+}
+
 export function finishGroupRound(campaign: GameCampaign, userMatchResult: { userScore: number; opponentScore: number }): GameCampaign {
   const userMatch = getCurrentUserGroupMatch(campaign)
   if (!userMatch) return campaign
@@ -183,11 +193,9 @@ export function finishGroupRound(campaign: GameCampaign, userMatchResult: { user
   const finalRound = campaign.currentGroupRound === 3
   if (!finalRound) return { ...campaign, groupMatches, groupPoints: userStanding?.points ?? campaign.groupPoints, currentGroupRound: (campaign.currentGroupRound + 1) as GroupRound }
 
-  return {
+  return finishGroupStageIfNeeded({
     ...campaign,
     groupMatches,
     groupPoints: userStanding?.points ?? campaign.groupPoints,
-    status: didUserQualifyFromGroup(standings) ? campaign.status : 'eliminated',
-    currentStage: didUserQualifyFromGroup(standings) ? 'Oitavas' : campaign.currentStage,
-  }
+  })
 }

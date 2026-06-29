@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from 'react'
 import { DraftScreen } from './components/DraftScreen'
 import { DraftSummaryScreen } from './components/DraftSummaryScreen'
 import { FinalScreen } from './components/FinalScreen'
+import { GroupStageFinalStandingsScreen } from './components/GroupStageFinalStandingsScreen'
 import { Header } from './components/Header'
 import { HomeScreen } from './components/HomeScreen'
 import { MatchSimulationScreen } from './components/MatchSimulationScreen'
@@ -10,6 +11,7 @@ import { TournamentScreen } from './components/TournamentScreen'
 import { playerById } from './data/players'
 import { canRerollTeam } from './game/balance'
 import { createDraftPickHistoryItem, getAvailableDraftTeams, getDraftTeam, updateRecentTeamIds, validateDraftPick } from './game/draft'
+import { calculateGroupStandings, didUserQualifyFromGroup, USER_GROUP_TEAM_ID } from './game/groupStage'
 import { createMatchSimulation } from './game/simulation'
 import { createDefaultLineup, validateStartingLineup } from './game/squad'
 import { applyMatch, opponentFor, stageFor } from './game/tournament'
@@ -134,6 +136,20 @@ export function App() {
     persist({ ...applyMatch(campaign, plan.match), starterIds: plan.starterIds })
   }
 
+  function continueToKnockout() {
+    if (!campaign) return
+    const standings = calculateGroupStandings(campaign.groupTeams, campaign.groupMatches)
+    if (!didUserQualifyFromGroup(standings, USER_GROUP_TEAM_ID)) return
+    persist({ ...campaign, status: 'active', currentStage: 'Oitavas', updatedAt: new Date().toISOString() })
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  function finishCampaignFromGroup() {
+    if (!campaign) return
+    persist({ ...campaign, status: 'eliminated', currentStage: 'Fase de grupos', updatedAt: new Date().toISOString() })
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
   function deleteCampaign(id: string) {
     campaignRepository.remove(id)
     setCampaigns(campaignRepository.list())
@@ -157,6 +173,9 @@ export function App() {
     screen = <DraftScreen selected={squad} team={draftTeam} formation={campaign.selectedFormation!} difficulty={campaign.selectedDifficulty} teamRerollsUsed={campaign.teamRerollsUsed} hasAlternativeTeam={hasAlternativeDraftTeam} onRedraw={redrawDraftTeam} onSelect={selectPlayer} />
   } else if (campaign.status === 'draft_summary') {
     screen = <DraftSummaryScreen squad={squad} formation={campaign.selectedFormation!} pickHistory={campaign.pickHistory ?? []} onContinue={continueAfterDraftSummary} />
+  } else if (campaign.status === 'active' && campaign.currentStage === 'Classificacao Final do Grupo') {
+    const standings = calculateGroupStandings(campaign.groupTeams, campaign.groupMatches)
+    screen = <GroupStageFinalStandingsScreen campaign={campaign} standings={standings} userTeamId={USER_GROUP_TEAM_ID} onContinueToKnockout={continueToKnockout} onFinishCampaign={finishCampaignFromGroup} />
   } else if (campaign.status === 'active') {
     const opponent = opponentFor(campaign)
     const bestPlayer = squad.filter((player) => player.position !== 'TECNICO').sort((a, b) => b.overall - a.overall)[0]

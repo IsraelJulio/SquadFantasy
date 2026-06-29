@@ -551,6 +551,12 @@ export function finalizeMatch(
   const best =
     topScorer ??
     (result === "defeat" ? `Camisa 10 do ${opponent.name}` : bestByOverall);
+  const scorerMap = new Map<string, number>();
+  for (const evt of state.events) {
+    if (evt.type === "goal" && evt.team === "user" && evt.playerName)
+      scorerMap.set(evt.playerName, (scorerMap.get(evt.playerName) ?? 0) + 1);
+  }
+  const scorers = [...scorerMap.entries()].map(([name, goals]) => ({ name, goals }));
   const match: GameMatch = {
     id: state.plan.id,
     stage: state.plan.stage,
@@ -566,6 +572,7 @@ export function finalizeMatch(
           ? `${opponent.name} aproveitou melhor os espaços.`
           : "Um duelo equilibrado até o apito final.",
     manOfTheMatch: best,
+    scorers,
     decidedOnPenalties: tiedKnockout,
     wentToPenalties: tiedKnockout,
     userPenaltyScore: shootout?.userPenaltyScore ?? null,

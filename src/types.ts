@@ -3,7 +3,7 @@ export type FutsalPosition = AthletePosition | 'TECNICO'
 export type Formation = 'DIAMOND_3_1' | 'SQUARE_2_2' | 'FOUR_ZERO' | 'THREE_TWO'
 export type Strategy = 'Ofensivo' | 'Equilibrado' | 'Defensivo' | 'Contra-ataque' | 'Posse de bola'
 export type Difficulty = 'CASUAL' | 'NORMAL' | 'CHALLENGE'
-export type Stage = 'Fase de grupos' | 'Oitavas' | 'Quartas' | 'Semifinal' | 'Final'
+export type Stage = 'Fase de grupos' | 'Classificacao Final do Grupo' | 'Oitavas' | 'Quartas' | 'Semifinal' | 'Final'
 export type CampaignStatus = 'tactics' | 'draft' | 'draft_summary' | 'active' | 'champion' | 'eliminated'
 export type MatchResult = 'victory' | 'draw' | 'defeat'
 export type MatchSimulationStatus = 'not_started' | 'first_half' | 'half_time' | 'second_half' | 'paused' | 'awaiting_penalties' | 'penalties' | 'finished'
@@ -172,6 +172,11 @@ export interface GroupMatch {
   involvesUserTeam: boolean
 }
 
+export interface MatchScorer {
+  name: string
+  goals: number
+}
+
 export interface GameMatch {
   id: string
   stage: Stage
@@ -181,6 +186,7 @@ export interface GameMatch {
   result: MatchResult
   summary: string
   manOfTheMatch: string
+  scorers?: MatchScorer[]
   decidedOnPenalties?: boolean
   wentToPenalties?: boolean
   userPenaltyScore?: number | null
