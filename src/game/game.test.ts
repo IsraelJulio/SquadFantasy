@@ -7,7 +7,7 @@ import { calculateDifficultyBoost, calculateTacticalMatchup } from './balance'
 import { draftTeamCoversRemainingPositions, draftTeamHasNeededDraftOption, getAvailableDraftTeams, getDraftPlayerAvailability, getDraftTeam, getNextDraftPosition, validateDraftPick, validateSquadForFormation } from './draft'
 import { getRequiredSquadByFormation } from './formations'
 import { createGroupStage } from './groupStage'
-import { applySubstitution, calculateLiveMatchStrengths, createInitialMatchState, createMatchSimulation, finalizeMatch, simulateNextMinute } from './simulation'
+import { applySubstitution, calculateLiveMatchStrengths, calculateMinuteGoalChances, createInitialMatchState, createMatchSimulation, finalizeMatch, OPPONENT_GOAL_CHANCE_CRITICAL_USER_STAMINA_MULTIPLIER, simulateNextMinute } from './simulation'
 import { calculateActiveLineupStrength, calculateCoachBoost, calculateComebackBoost, calculateEffectiveOverall, coachFrom, createDefaultLineup, getCompatibleSubstitutes, updatePlayerStamina, validateStartingLineup } from './squad'
 import { BENCH_STAMINA_RECOVERY_PER_MINUTE, calculateStaminaLossPerMinute } from './staminaRules'
 import { applyMatch, pointsFor } from './tournament'
@@ -141,7 +141,7 @@ describe('overall, stamina e força', () => {
   it('reduz o overall com cansaço sem cair abaixo de 50% nem superar o original', () => {
     expect(calculateEffectiveOverall({ overallOriginal: 80, stamina: 100 })).toBe(80)
     expect(calculateEffectiveOverall({ overallOriginal: 80, stamina: 50 })).toBe(71)
-    expect(calculateEffectiveOverall({ overallOriginal: 80, stamina: 0 })).toBe(62)
+    expect(calculateEffectiveOverall({ overallOriginal: 80, stamina: 0 })).toBe(53)
     expect(calculateEffectiveOverall({ overallOriginal: 80, stamina: 140 })).toBe(80)
     expect(calculateEffectiveOverall({ overallOriginal: 35, stamina: 0, fatigueFactor: 1.8 })).toBe(30)
   })
@@ -170,6 +170,15 @@ describe('overall, stamina e força', () => {
 
   it('limita a reação do time conforme a sequência de derrotas', () => {
     expect([0, 1, 2, 3, 7].map(calculateComebackBoost)).toEqual([1, 1.05, 1.1, 1.15, 1.15])
+  })
+
+  it('aumenta em 30% a chance de gol adversaria quando um titular fica abaixo de 25% de estamina', () => {
+    const normal = calculateMinuteGoalChances(80, 80, [{ stamina: 25 }])
+    const critical = calculateMinuteGoalChances(80, 80, [{ stamina: 24 }])
+
+    expect(normal.opponentGoalChance).toBeCloseTo(0.065)
+    expect(critical.userGoalChance).toBe(normal.userGoalChance)
+    expect(critical.opponentGoalChance).toBeCloseTo(normal.opponentGoalChance * OPPONENT_GOAL_CHANCE_CRITICAL_USER_STAMINA_MULTIPLIER)
   })
 
   it('aplica dificuldade e confronto tático sem beneficiar o adversário com anti-frustração', () => {
@@ -261,14 +270,15 @@ describe('simulação incremental', () => {
     const plan = createMatchSimulation('opponent-sub', 0, squad, starterIds, 'DIAMOND_3_1', 'Equilibrado', 'Fase de grupos')
     const initial = createInitialMatchState(plan, opponents[0])
     const outgoingId = initial.opponentActiveIds.find((id) => initial.opponentPlayers.find((player) => player.id === id)?.position === 'ALA')!
-    const incomingId = initial.opponentBenchIds.find((id) => initial.opponentPlayers.find((player) => player.id === id)?.position === 'ALA')!
     const tired = {
       ...initial,
       minute: 5,
       opponentPlayers: initial.opponentPlayers.map((player) => player.id === outgoingId ? { ...player, stamina: 10, overall: calculateEffectiveOverall({ overallOriginal: player.overallOriginal, stamina: 10 }) } : player),
     }
     const changed = simulateNextMinute(tired, opponents[0])
-    expect(changed.opponentActiveIds).toContain(incomingId)
+    const incomingId = changed.opponentActiveIds.find((id) => !initial.opponentActiveIds.includes(id))!
+    expect(incomingId).toBeTruthy()
+    expect(changed.opponentPlayers.find((player) => player.id === incomingId)?.position).toBe('ALA')
     expect(changed.opponentBenchIds).toContain(outgoingId)
     expect(changed.events.at(-1)).toMatchObject({ type: 'substitution', team: 'opponent' })
 

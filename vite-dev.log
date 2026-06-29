@@ -28,3 +28,6 @@ Port 5173 is in use, trying another one...
 2:44:58 AM [vite] (client) hmr update /src/components/PenaltyShootoutPanel.tsx
 2:45:01 AM [vite] (client) hmr update /src/components/MatchSimulationScreen.tsx
 2:45:22 AM [vite] (client) hmr update /src/components/PenaltyShootoutPanel.tsx
+2:54:05 AM [vite] (client) hmr update /src/App.tsx, /src/components/TournamentScreen.tsx, /src/components/MatchSimulationScreen.tsx, /src/components/LineupModal.tsx, /src/components/SubstitutionModal.tsx
+3:03:32 AM [vite] (client) hmr update /src/App.tsx, /src/components/MatchSimulationScreen.tsx
+3:11:57 AM [vite] (client) hmr update /src/App.tsx, /src/components/MatchSimulationScreen.tsx

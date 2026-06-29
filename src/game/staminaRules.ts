@@ -8,6 +8,8 @@ export const MAX_FATIGUE_FACTOR = 1.8
 export const DEFAULT_FATIGUE_FACTOR = 1
 export const BASE_STAMINA_LOSS_PER_MINUTE = 1.5
 export const BENCH_STAMINA_RECOVERY_PER_MINUTE = 0.75
+export const CRITICAL_STAMINA_THRESHOLD = 25
+export const CRITICAL_OVERALL_DECAY_MULTIPLIER = 3
 
 const strategyStaminaMultiplier: Record<Strategy, number> = {
   Ofensivo: 1.15,
@@ -68,8 +70,10 @@ export function calculateStaminaLossPerMinute(player: GamePlayer, matchMinute: n
 export function calculateCurrentOverall(baseOverall: number, stamina: number, fatigueFactor = DEFAULT_FATIGUE_FACTOR): number {
   const safeStamina = clamp(stamina, MIN_STAMINA, MAX_STAMINA)
   if (safeStamina >= 80) return baseOverall
-  const staminaDeficit = MAX_STAMINA - safeStamina
-  const penalty = staminaDeficit * 0.18 * normalizeFatigueFactor(fatigueFactor)
+  const normalDeficit = MAX_STAMINA - Math.max(safeStamina, CRITICAL_STAMINA_THRESHOLD)
+  const criticalDeficit = Math.max(0, CRITICAL_STAMINA_THRESHOLD - safeStamina)
+  const weightedStaminaDeficit = normalDeficit + criticalDeficit * CRITICAL_OVERALL_DECAY_MULTIPLIER
+  const penalty = weightedStaminaDeficit * 0.18 * normalizeFatigueFactor(fatigueFactor)
   return Math.max(MIN_OVERALL, Math.min(baseOverall, Math.round(baseOverall - penalty)))
 }
 

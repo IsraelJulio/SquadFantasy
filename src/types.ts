@@ -127,6 +127,7 @@ export interface DraftSummaryGrade {
 export interface Opponent {
   id: string
   name: string
+  country: string
   year: number
   level: number
   strategy: Strategy

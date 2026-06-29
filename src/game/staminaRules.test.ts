@@ -5,6 +5,8 @@ import {
   BENCH_STAMINA_RECOVERY_PER_MINUTE,
   calculateCurrentOverall,
   calculateStaminaLossPerMinute,
+  CRITICAL_OVERALL_DECAY_MULTIPLIER,
+  CRITICAL_STAMINA_THRESHOLD,
   updateMatchPlayerStatesPerMinute,
 } from './staminaRules'
 import { calculateActiveLineupStrength } from './squad'
@@ -40,6 +42,20 @@ describe('regras de stamina e fatigueFactor', () => {
     expect(calculateCurrentOverall(80, 40, 1)).toBeLessThan(calculateCurrentOverall(80, 70, 1))
     expect(calculateCurrentOverall(80, 20, 1.4)).toBeLessThan(calculateCurrentOverall(80, 40, 1))
     expect(calculateCurrentOverall(35, 0, 1.8)).toBe(30)
+  })
+
+  it('faz o overall cair 3 vezes mais rapido abaixo de 25% de stamina', () => {
+    const baseOverall = 80
+    const atThreshold = calculateCurrentOverall(baseOverall, CRITICAL_STAMINA_THRESHOLD, 1)
+    const onePointBelowThreshold = calculateCurrentOverall(baseOverall, CRITICAL_STAMINA_THRESHOLD - 1, 1)
+    const expectedPenalty = (
+      (100 - CRITICAL_STAMINA_THRESHOLD)
+      + CRITICAL_STAMINA_THRESHOLD * CRITICAL_OVERALL_DECAY_MULTIPLIER
+    ) * 0.18
+
+    expect(atThreshold).toBe(67)
+    expect(onePointBelowThreshold).toBeLessThan(atThreshold)
+    expect(calculateCurrentOverall(baseOverall, 0, 1)).toBe(Math.round(baseOverall - expectedPenalty))
   })
 
   it('atualiza quadra e banco, limitando stamina e recalculando overall', () => {

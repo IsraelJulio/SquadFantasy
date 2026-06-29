@@ -80,7 +80,7 @@ describe('futsalDatabase', () => {
     expect(draftTeam).toMatchObject({ id: sourceTeam.id, name: sourceTeam.name, country: sourceTeam.country, referenceYear: sourceTeam.referenceYear })
     expect(draftTeam.players.filter((player) => player.position !== 'TECNICO').length).toBeGreaterThan(0)
     expect(draftTeam.players.filter((player) => player.position === 'TECNICO')).toHaveLength(1)
-    expect(opponent).toMatchObject({ id: draftTeam.id, name: sourceTeam.country, teamName: draftTeam.name, year: sourceTeam.referenceYear, strategy: sourceTeam.defaultStrategy })
+    expect(opponent).toMatchObject({ id: draftTeam.id, name: sourceTeam.country, country: sourceTeam.country, teamName: draftTeam.name, year: sourceTeam.referenceYear, strategy: sourceTeam.defaultStrategy })
     expect(opponent.players).toHaveLength(draftTeam.players.length)
     expect(emptyDraftTeam.rosterNotes).toContain('Sem jogadores')
   })

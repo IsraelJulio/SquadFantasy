@@ -33,7 +33,7 @@ export function TournamentScreen({ campaign, opponent, squad, bestPlayer, onPlay
       <section className="match-card">
         <div className="team-side team-side--user"><div className="team-crest">EI</div><span>SEU TIME</span><h2>Esquadrão Imortal</h2><small>{campaign.selectedFormation && formationTitle(campaign.selectedFormation)} · {campaign.selectedStrategy}</small></div>
         <div className="versus"><span>CONFRONTO</span><strong>VS</strong><small>{new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).toUpperCase()}</small></div>
-        <div className="team-side">{opponent.flagUrl?.startsWith('https://') ? <img className="team-crest team-crest--opponent" src={opponent.flagUrl} alt={opponent.name} /> : <div className="team-crest team-crest--opponent">{opponent.name.split(' ').map((part) => part[0]).join('').slice(0, 2)}</div>}<span>ADVERSÁRIO</span><h2>{opponent.name}</h2><small>{opponent.year} · {opponent.strategy}</small></div>
+        <div className="team-side">{opponent.flagUrl?.startsWith('https://') ? <img className="team-crest team-crest--opponent" src={opponent.flagUrl} alt={opponent.name} /> : <div className="team-crest team-crest--opponent">{opponent.name.split(' ').map((part) => part[0]).join('').slice(0, 2)}</div>}<span>ADVERSÁRIO</span><h2>{opponent.name}</h2><small>{opponent.country} · {opponent.strategy}</small></div>
       </section>
       <section className="match-meta">
         <article><span>DESTAQUE DO QUINTETO</span><strong>{bestPlayer.name}</strong><small>{bestPlayer.overall} OVR · {bestPlayer.position}</small></article>
@@ -42,7 +42,7 @@ export function TournamentScreen({ campaign, opponent, squad, bestPlayer, onPlay
       </section>
       {campaign.currentStage === 'Fase de grupos' && <GroupStageCard campaign={campaign} />}
       <section className="prematch-strategy" aria-labelledby="prematch-strategy-title">
-        <div><span>AJUSTE TÁTICO</span><strong id="prematch-strategy-title">Escolha como enfrentar {opponent.name}</strong></div>
+        <div><span>AUXILIAR TÉCNICO</span><strong id="prematch-strategy-title">Escolha como enfrentar {opponent.name}</strong></div>
         <div className="prematch-strategy__options">{strategies.map((item) => {
           const edge = calculateTacticalMatchup(item, opponent.strategy).edge
           const matchupLabel = edge > 0 ? `Favorável +${Math.round(edge * 100)}%` : edge < 0 ? `Desfavorável ${Math.round(edge * 100)}%` : 'Neutro'
