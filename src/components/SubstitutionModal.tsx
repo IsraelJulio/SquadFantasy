@@ -54,7 +54,7 @@ export function SubstitutionModal({ mode, activePlayers, benchPlayers, coach, fo
           <div>
             <span className="eyebrow">{preMatch ? formationLabel?.toUpperCase() : 'RELÓGIO PAUSADO'}</span>
             <h2 id="sub-title">{preMatch ? 'Definir time titular' : 'Fazer substituição'}</h2>
-            <p>{preMatch ? 'Monte seu time titular antes da partida. Clique em um jogador da quadra para ver no banco quais atletas podem entrar naquela posição. Depois, selecione o substituto desejado para trocar os jogadores. O técnico não entra em quadra, mas aplica bônus ao desempenho do time.' : 'Escolha quem sai e quem entra. A substituição será registrada na linha do tempo e o relógio continua parado para você fazer outras trocas. Quando terminar, volte ao jogo pelo botão abaixo.'}</p>
+            <p>{preMatch ? 'Monte seu time titular antes da partida. Clique em um jogador da quadra para ver no banco quais atletas podem entrar naquela posição. Depois, selecione o substituto desejado para trocar os jogadores. O técnico não entra em quadra, mas aplica bônus ao desempenho do time.' : 'Escolha quem sai e quem entra. Quando terminar, volte ao jogo pelo botão abaixo.'}</p>
           </div>
           <button className="modal-close" onClick={onClose} aria-label="Fechar">×</button>
         </header>

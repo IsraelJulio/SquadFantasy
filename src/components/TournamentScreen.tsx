@@ -21,6 +21,7 @@ const strategies: Strategy[] = ['Ofensivo', 'Equilibrado', 'Defensivo', 'Contra-
 
 export function TournamentScreen({ campaign, opponent, squad, bestPlayer, onPlay, onSaveLineup, onStrategy }: TournamentScreenProps) {
   const [editingLineup, setEditingLineup] = useState(false)
+  const isChallengeDifficulty = campaign.selectedDifficulty === 'CHALLENGE'
   const stageIndex = campaign.matches.length < 3 ? 0 : Math.min(campaign.matches.length - 2, 4)
   const starters = squad.filter((player) => campaign.starterIds.includes(player.id))
   const bench = squad.filter((player) => player.position !== 'TECNICO' && !campaign.starterIds.includes(player.id))
@@ -44,11 +45,11 @@ export function TournamentScreen({ campaign, opponent, squad, bestPlayer, onPlay
       <section className="prematch-strategy" aria-labelledby="prematch-strategy-title">
         <div><span>AUXILIAR TÉCNICO</span><strong id="prematch-strategy-title">Escolha como enfrentar {opponent.name}</strong></div>
         <div className="prematch-strategy__options">{strategies.map((item) => {
-          const edge = calculateTacticalMatchup(item, opponent.strategy).edge
-          const matchupLabel = edge > 0 ? `Favorável +${Math.round(edge * 100)}%` : edge < 0 ? `Desfavorável ${Math.round(edge * 100)}%` : 'Neutro'
+          const edge = isChallengeDifficulty ? 0 : calculateTacticalMatchup(item, opponent.strategy).edge
+          const matchupLabel = isChallengeDifficulty ? 'Indisponivel no Desafio' : edge > 0 ? `Favorável +${Math.round(edge * 100)}%` : edge < 0 ? `Desfavorável ${Math.round(edge * 100)}%` : 'Neutro'
           return <button aria-pressed={campaign.selectedStrategy === item} className={campaign.selectedStrategy === item ? 'active' : ''} key={item} onClick={() => onStrategy(item)}><strong>{item}</strong><small className={edge > 0 ? 'positive' : edge < 0 ? 'negative' : ''}>{matchupLabel}</small></button>
         })}</div>
-        <p>O adversário joga no estilo <b>{opponent.strategy}</b>. Um confronto favorável melhora sua força sem substituir o overall ou a stamina.</p>
+        <p>{isChallengeDifficulty ? 'No modo Desafio, o auxiliar tecnico nao mostra leituras de vantagem antes da partida.' : <>O adversário joga no estilo <b>{opponent.strategy}</b>. Um confronto favorável melhora sua força sem substituir o overall ou a stamina.</>}</p>
       </section>
       <div className="prematch-actions">
         <button className="button button--primary simulate-button" onClick={onPlay} disabled={lineupErrors.length > 0}>Iniciar partida <span>▶</span></button>

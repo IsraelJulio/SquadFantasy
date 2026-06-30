@@ -17,7 +17,8 @@ export const DIFFICULTY_SETTINGS: Record<Difficulty, DifficultySettings> = {
     label: "Casual",
     maxTeamRerolls: 3,
     showDraftPlayerOverall: true,
-    description: "Mostra overall no draft e permite sortear nova equipe até 3 vezes.",
+    description:
+      "Mostra overall no draft e permite sortear nova equipe até 3 vezes.",
     userStrengthBoost: 1.08,
     underdogTargetRatio: 1.22,
     maximumStrengthBoost: 1.45,
@@ -37,19 +38,29 @@ export const DIFFICULTY_SETTINGS: Record<Difficulty, DifficultySettings> = {
     label: "Desafio",
     maxTeamRerolls: 0,
     showDraftPlayerOverall: false,
-    description: "Oculta overall no draft e não permite sortear nova equipe.",
+    description:
+      "Oculta overall no draft e não permite sortear nova equipe, alem de não ter o Auxiliar técnico.",
     userStrengthBoost: 1,
     underdogTargetRatio: 1,
     maximumStrengthBoost: 1.28,
   },
 };
 
-export function canRerollTeam(difficulty: Difficulty, teamRerollsUsed: number): boolean {
+export function canRerollTeam(
+  difficulty: Difficulty,
+  teamRerollsUsed: number,
+): boolean {
   return teamRerollsUsed < DIFFICULTY_SETTINGS[difficulty].maxTeamRerolls;
 }
 
-export function getRemainingTeamRerolls(difficulty: Difficulty, teamRerollsUsed: number): number {
-  return Math.max(0, DIFFICULTY_SETTINGS[difficulty].maxTeamRerolls - teamRerollsUsed);
+export function getRemainingTeamRerolls(
+  difficulty: Difficulty,
+  teamRerollsUsed: number,
+): number {
+  return Math.max(
+    0,
+    DIFFICULTY_SETTINGS[difficulty].maxTeamRerolls - teamRerollsUsed,
+  );
 }
 
 export function shouldShowDraftPlayerOverall(difficulty: Difficulty): boolean {

@@ -48,7 +48,7 @@ export function GroupStageFinalStandingsScreen({ campaign, standings, userTeamId
       <section className="final-group-table-panel" aria-labelledby="final-group-table-title">
         <div className="final-group-section-heading">
           <span>TABELA FINAL</span>
-          <h2 id="final-group-table-title">4 times, 2 vagas</h2>
+          {/* <h2 id="final-group-table-title">4 times, 2 vagas</h2> */}
         </div>
         <div className="final-group-table-wrap">
           <table className="final-group-table">
@@ -76,7 +76,7 @@ export function GroupStageFinalStandingsScreen({ campaign, standings, userTeamId
                     <td>{index + 1}</td>
                     <th scope="row">
                       <span>{standing.teamName}</span>
-                      {isUser && <small>Seu time</small>}
+                      {/* {isUser && <small>Seu time</small>} */}
                     </th>
                     <td>{standing.points}</td>
                     <td>{standing.played}</td>
