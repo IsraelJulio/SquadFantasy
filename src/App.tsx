@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { DraftScreen } from './components/DraftScreen'
 import { DraftSummaryScreen } from './components/DraftSummaryScreen'
 import { FinalScreen } from './components/FinalScreen'
@@ -30,6 +30,15 @@ export function App() {
   const squad = useMemo(() => campaign?.playerIds.map((id) => playerById.get(id)).filter((player): player is GamePlayer => Boolean(player)) ?? [], [campaign])
   const draftTeam = useMemo(() => campaign?.selectedFormation ? getDraftTeam(campaign.id, squad, campaign.selectedFormation, campaign.teamRerollsUsed, campaign.recentTeamIds ?? []) : null, [campaign, squad])
   const hasAlternativeDraftTeam = useMemo(() => campaign?.selectedFormation ? getAvailableDraftTeams(campaign.id, squad, campaign.selectedFormation, campaign.recentTeamIds ?? []).length > 1 : false, [campaign, squad])
+  const screenKey = activeSimulation
+    ? 'match-simulation'
+    : campaign
+      ? `${campaign.id}-${campaign.status}-${campaign.currentStage}-${campaign.status === 'draft' ? `${campaign.playerIds.length}-${campaign.teamRerollsUsed}` : ''}`
+      : 'home'
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'smooth' })
+  }, [screenKey])
 
   function persist(next: GameCampaign) {
     const saved = campaignRepository.save(next)

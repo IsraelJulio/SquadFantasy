@@ -1,4 +1,4 @@
-import { cleanup, render, screen, within } from '@testing-library/react'
+import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { DraftPickHistoryItem, FutsalPosition, GamePlayer } from '../types'
 import { DraftSummaryScreen } from './DraftSummaryScreen'
@@ -39,12 +39,12 @@ const history: DraftPickHistoryItem[] = squad.map((item, index) => ({
 }))
 
 describe('DraftSummaryScreen', () => {
-  it('renderiza 11 escolhas, tecnico separado e rank do time', () => {
+  it('renderiza elenco contratado, tecnico separado e rank do time sem ordem das escolhas', () => {
     render(<DraftSummaryScreen squad={squad} formation="DIAMOND_3_1" pickHistory={history} onContinue={vi.fn()} />)
 
     expect(screen.getByRole('heading', { name: /Resumo do Draft/i })).toBeInTheDocument()
-    const orderPanel = screen.getByText('ORDEM DAS ESCOLHAS').closest('article')!
-    expect(within(orderPanel).getAllByRole('listitem')).toHaveLength(11)
+    expect(screen.queryByText('ORDEM DAS ESCOLHAS')).not.toBeInTheDocument()
+    expect(screen.getByText('ELENCO CONTRATADO')).toBeInTheDocument()
     expect(screen.getByText('Tecnico contratado')).toBeInTheDocument()
     expect(screen.getAllByText('Tecnico Mestre').length).toBeGreaterThan(0)
     expect(screen.getByText('Rank do elenco')).toBeInTheDocument()
@@ -71,5 +71,27 @@ describe('DraftSummaryScreen', () => {
     render(<DraftSummaryScreen squad={squad.slice(0, 10)} formation="DIAMOND_3_1" pickHistory={history.slice(0, 10)} onContinue={vi.fn()} />)
 
     expect(screen.getByRole('button', { name: 'Continuar' })).toBeDisabled()
+  })
+
+  it('usa o escudo do time no elenco contratado quando o flagUrl existe', () => {
+    const playerWithCrest = player('crest-player', 'Jogador Com Escudo', 'ALA', 82)
+    const pickWithCrest: DraftPickHistoryItem = {
+      pickNumber: 1,
+      playerId: playerWithCrest.id,
+      playerName: playerWithCrest.name,
+      position: playerWithCrest.position,
+      role: 'PLAYER',
+      teamId: '2',
+      teamName: 'Batista Nacional',
+      overallOriginal: playerWithCrest.overallOriginal,
+      overall: playerWithCrest.overall,
+      selectedAt: '2026-06-27T12:00:00.000Z',
+    }
+
+    const { container } = render(<DraftSummaryScreen squad={[playerWithCrest]} formation="DIAMOND_3_1" pickHistory={[pickWithCrest]} onContinue={vi.fn()} />)
+
+    const crest = container.querySelector<HTMLImageElement>('.draft-roster-player__crest')
+    expect(crest?.tagName).toBe('IMG')
+    expect(crest?.src).toContain('/prod/equipes/2/')
   })
 })

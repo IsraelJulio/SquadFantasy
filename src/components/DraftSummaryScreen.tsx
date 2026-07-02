@@ -1,5 +1,6 @@
 import { calculateDraftTeamGrade, getDraftSummaryInsights } from '../game/draftSummary'
 import { ATHLETE_POSITIONS } from '../game/formations'
+import { getTeamById } from '../data/futsalDatabase'
 import type { DraftPickHistoryItem, Formation, FutsalPosition, GameCoach, GamePlayer } from '../types'
 
 interface DraftSummaryScreenProps {
@@ -21,6 +22,16 @@ function initials(name: string) {
   return name.split(' ').map((part) => part[0]).join('').slice(0, 2)
 }
 
+function DraftRosterCrest({ playerName, teamId }: { playerName: string; teamId?: string }) {
+  const flagUrl = teamId ? getTeamById(teamId)?.flagUrl : undefined
+
+  if (flagUrl?.startsWith('https://')) {
+    return <img className="draft-roster-player__crest" src={flagUrl} alt="" aria-hidden="true" />
+  }
+
+  return <span className="draft-roster-player__crest" aria-hidden="true">{initials(playerName)}</span>
+}
+
 export function DraftSummaryScreen({ squad, formation, pickHistory, onContinue }: DraftSummaryScreenProps) {
   const athletes = squad.filter((player) => player.position !== 'TECNICO')
   const coach = squad.find((player): player is GameCoach => player.position === 'TECNICO')
@@ -28,7 +39,6 @@ export function DraftSummaryScreen({ squad, formation, pickHistory, onContinue }
   const grade = coach ? calculateDraftTeamGrade({ players: squad, coach, formationKey: formation }) : null
   const insights = coach ? getDraftSummaryInsights({ players: squad, coach, formationKey: formation }) : []
   const averageOverall = athletes.length > 0 ? Math.round(athletes.reduce((sum, player) => sum + player.overall, 0) / athletes.length) : 0
-  const orderedHistory = [...pickHistory].sort((left, right) => left.pickNumber - right.pickNumber)
   const groupedPositions: FutsalPosition[] = [...ATHLETE_POSITIONS, 'TECNICO']
 
   return (
@@ -56,23 +66,7 @@ export function DraftSummaryScreen({ squad, formation, pickHistory, onContinue }
         </article>}
       </section>
 
-      <section className="draft-summary-grid">
-        <article className="draft-summary-panel">
-          <header><span>ORDEM DAS ESCOLHAS</span><strong>{orderedHistory.length}/11</strong></header>
-          <ol className="draft-pick-list">
-            {orderedHistory.map((pick) => (
-              <li key={`${pick.pickNumber}-${pick.playerId}`}>
-                <b>{pick.pickNumber}</b>
-                <div>
-                  <strong>{pick.playerName}</strong>
-                  <small>{positionLabels[pick.position]} - Origem: {pick.teamName}</small>
-                </div>
-                <span>{pick.overall} OVR</span>
-              </li>
-            ))}
-          </ol>
-        </article>
-
+      <section className="draft-summary-grid draft-summary-grid--single">
         <article className="draft-summary-panel">
           <header><span>ELENCO CONTRATADO</span><strong>{squad.length}/11</strong></header>
           <div className="draft-roster-groups">
@@ -85,7 +79,7 @@ export function DraftSummaryScreen({ squad, formation, pickHistory, onContinue }
                   {players.map((player) => {
                     const pick = pickHistory.find((item) => item.playerId === player.id)
                     return <article className={position === 'TECNICO' ? 'draft-roster-player draft-roster-player--coach' : 'draft-roster-player'} key={player.id}>
-                      <span aria-hidden="true">{initials(player.name)}</span>
+                      <DraftRosterCrest playerName={player.name} teamId={pick?.teamId} />
                       <div>
                         <strong>{player.name}</strong>
                         <small>Escolha {pick?.pickNumber ?? '-'} - {pick?.teamName ?? 'Origem nao registrada'}</small>

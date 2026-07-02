@@ -510,6 +510,7 @@ footer > span { font: 600 15px var(--display); color: #92a399; letter-spacing: .
 .draft-summary-metric strong { color: white; font: 700 58px/.9 var(--display); }
 .draft-summary-coach strong { margin: 8px 0; font: 600 25px/1 var(--display); text-transform: uppercase; }
 .draft-summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+.draft-summary-grid--single { grid-template-columns: 1fr; }
 .draft-summary-panel { padding: 18px; }
 .draft-summary-panel header { min-height: 42px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--line); }
 .draft-summary-panel header strong { color: white; font: 600 18px var(--display); }
@@ -523,9 +524,11 @@ footer > span { font: 600 15px var(--display); color: #92a399; letter-spacing: .
 .draft-roster-groups h2 { margin: 0 0 7px; color: var(--lime); font: 600 11px var(--display); letter-spacing: .12em; text-transform: uppercase; }
 .draft-roster-groups section > div { display: grid; gap: 6px; }
 .draft-roster-player { min-height: 58px; padding: 9px; display: grid; grid-template-columns: 36px minmax(0,1fr) auto; align-items: center; gap: 10px; border: 1px solid rgba(255,255,255,.07); background: rgba(255,255,255,.03); }
-.draft-roster-player > span { width: 34px; height: 34px; display: grid; place-items: center; color: var(--lime); background: #183e32; border-radius: 50%; font: 600 10px var(--display); }
+.draft-roster-player__crest { width: 34px; height: 34px; border: 1px solid rgba(255,255,255,.1); border-radius: 50%; object-fit: cover; }
+span.draft-roster-player__crest { display: grid; place-items: center; color: var(--lime); background: #183e32; font: 600 10px var(--display); }
+img.draft-roster-player__crest { display: block; background: rgba(0,0,0,.16); }
 .draft-roster-player--coach { border-color: rgba(185,155,255,.28); background: rgba(185,155,255,.06); }
-.draft-roster-player--coach > span { color: #d3c2ff; background: #29213d; }
+.draft-roster-player--coach span.draft-roster-player__crest { color: #d3c2ff; background: #29213d; }
 .draft-summary-insights { margin-top: 16px; }
 .draft-summary-insights ul { margin: 0; padding: 0; display: grid; gap: 8px; list-style: none; }
 .draft-summary-insights li { padding: 12px 14px; color: #d9e3dd; border: 1px solid rgba(255,255,255,.07); background: rgba(255,255,255,.03); }
